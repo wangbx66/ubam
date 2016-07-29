@@ -1,6 +1,7 @@
 from __future__ import division
 
 import math
+import json
 
 Races = {'Blood Elf':0, 'Orc':1, 'Tauren':2, 'Troll':3, 'Undead':4}
 Categories = {'Death Knight':0, 'Druid':1, 'Hunter':2, 'Mage':3, 'Paladin':4, 'Priest':5, 'Rogue':6, 'Shaman':7, 'Warlock':8, 'Worrier':9}
@@ -9,6 +10,14 @@ Cnt = {"Quel'thalas": 100, 'Coilfang: The Slave Pens': 149884, 'Uldaman': 58463,
 Mintt = 1136069986
 Lktt = 1226552400
 TT = 36513648
+
+def clear(dd, null=False):
+    if 'Null' in dd and not null:
+        del dd['Null']
+    z = dd.values()
+    m = {z[i]:i for i in range(len(z))}
+    for x in dd:
+        dd[x] = m[dd[x]]
 
 def keymatch():
     races = {'Null':0}
@@ -53,12 +62,7 @@ def keymatch():
     for zone in cnt:
         if cnt[zone] < 50:
             del zones[zone]
-    if 'Null' in zones:
-        del zones['Null']
-    z = zones.values()
-    m = {z[i]:i for i in range(len(z))}
-    for zone in zones:
-        zones[zone] = m[zones[zone]]
+    clear[zones]
     with open('tmp.txt', 'w') as fw:
         fw.write(str(zones))
         fw.write('\n')
@@ -67,6 +71,7 @@ def keymatch():
 
 def cat_user():
     idx = 99
+    users = {}
     fp = open('data/WoWAH_Node_Player_Fixed_Dynamic')
     for line in fp:
         if line.startswith('#') or line.startswith('RowID'):
@@ -91,12 +96,19 @@ def cat_user():
             continue
         if not zone in Zones:
             continue
+        if user in users:
+            users[user] += 1
+        else:
+            users[user] = 1
         s = (idx, user, tt, guild, lvl, Races[race], Categories[category], Zones[zone], seq)
         buf = ','.join([str(x) for x in s])
         with open('data/users/{0}.txt'.format(user), 'a') as fw:  
             fw.write(buf)
             fw.write('\n')
+        with open('data/usersjson.txt', 'w') as fw:
+            fw.write(json.dumps(users))
 
 if __name__ == '__main__':
     #zones, cnt, mintt = keymatch()
     #cat_user()
+    pass

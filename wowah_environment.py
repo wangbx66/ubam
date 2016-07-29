@@ -1,40 +1,45 @@
 import logging
+import json
+
 import numpy as np
 
-class Wowah_environment(object):
-    def __init__(self, ale, agent, num_context, num_epochs, epoch_length, test_length,
+class wowah_env(object):
+    def __init__(self, ale, agent, width, height, num_episodes, epoch_length, test_length,
                  frame_skip, death_ends_episode, max_start_nullops, rng):
-        self.ale = ale
+        with open('data/zonesjson.txt') as fp:
+            self.zones = json.loads(fp.readline())
+            self.lvls = json.loads(fp.readline())
         self.agent = agent
-        self.num_epochs = num_epochs
-        self.epoch_length = epoch_length
-        self.test_length = test_length
-        self.frame_skip = frame_skip
-        self.death_ends_episode = death_ends_episode
-        self.min_action_set = ale.getMinimalActionSet()
-
-        self.buffer_length = 2
-        self.buffer_count = 0
-        self.screen_buffer = np.empty((self.buffer_length,
-                                       self.num_context + 1),
-                                      dtype=np.float32)
-
-        self.terminal_lol = False # Most recent episode ended on a loss of life
-        self.max_start_nullops = max_start_nullops
+        self.test_interval = test_interval
+        self.num_episodes = 1000
+        self.action_set = set(zones)
         self.rng = rng
+
+        # The followings for test use only
+        self.test_episodes = 1000
+        self.frame_skip = 4
+        self.buffer_length = 50
+        self.buffer_count = 0
+        self.screen_buffer = np.empty((self.buffer_length, self.height, self.width), dtype=np.uint8)
+        self.terminal_lol = False # Most recent episode ended on a loss of life (unsubscribe of wow)
+        
 
     def run(self):
         """
         Run the desired number of training epochs, a testing epoch
         is conducted after each training epoch.
         """
-        for epoch in range(1, self.num_epochs + 1):
-            self.run_epoch(epoch, self.epoch_length)
+        for episode in range(1, self.num_episodes + 1):
+            self.run_episode(self.test_interval, testing=False)
             self.agent.finish_epoch(epoch)
+            with open(self.agent.exp_dir + '/network_file_' + str(episode) + '.pkl', 'w') as fw:
+                cPickle.dump(self.agent.network, fw, -1)
 
-            if self.test_length > 0:
+            if self.test_episodes > 0:
                 self.agent.start_testing()
-                self.run_epoch(epoch, self.test_length, True)
+                self.terminal_lol = False
+                logging.info('testing at episode {0}'.format(episode))
+                self.run_episode(self.test_episodes, testing=True)
                 self.agent.finish_testing(epoch)
 
     def run_epoch(self, epoch, num_steps, testing=False):
@@ -103,19 +108,8 @@ class Wowah_environment(object):
         return reward
 
     def run_episode(self, max_steps, testing):
-        """Run a single training episode.
-
-        The boolean terminal value returned indicates whether the
-        episode ended because the game ended or the agent died (True)
-        or because the maximum number of steps was reached (False).
-        Currently this value will be ignored.
-
-        Return: (terminal, num_steps)
-
-        """
-
         self._init_episode()
-
+        
         start_lives = self.ale.lives()
 
         action = self.agent.start_episode(self.get_observation())
