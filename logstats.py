@@ -1,7 +1,10 @@
 from __future__ import division
 
+import os
 import math
 import json
+
+import matplotlib.pyplot as plt
 
 Races = {'Blood Elf':0, 'Orc':1, 'Tauren':2, 'Troll':3, 'Undead':4}
 Categories = {'Death Knight':0, 'Druid':1, 'Hunter':2, 'Mage':3, 'Paladin':4, 'Priest':5, 'Rogue':6, 'Shaman':7, 'Warlock':8, 'Worrier':9}
@@ -105,10 +108,33 @@ def cat_user():
         with open('data/users/{0}.txt'.format(user), 'a') as fw:  
             fw.write(buf)
             fw.write('\n')
-        with open('data/usersjson.txt', 'w') as fw:
+        with open('data/usersjson_sketch.txt', 'w') as fw:
             fw.write(json.dumps(users))
+
+def userstats():
+    directory = 'data/users'
+    users = os.listdir(directory)
+    lvls_start = []
+    lvls_end = []
+    lvls_elapses = []
+    for i, user in enumerate(users):
+        print(i)
+        if i>300:
+            break
+        with open(os.path.join(directory, user)) as fp:
+            for idx, line in enumerate(fp):
+                if idx == 0:
+                    lvl_start = line.strip().split(',')[4]
+        lvl_end = line.strip().split(',')[4]
+        elapse = idx + 1
+        lvls_start.append(lvl_start)
+        lvls_end.append(lvl_end)
+        lvls_elapses.append((elapse, lvl_end))
+    plt.hist(lvls_start, bins=30)
+    return lvls_start, lvls_end, lvls_elapses
 
 if __name__ == '__main__':
     #zones, cnt, mintt = keymatch()
     #cat_user()
+    userstats()
     pass
