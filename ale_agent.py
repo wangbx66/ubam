@@ -127,6 +127,16 @@ class NeuralAgent(object):
             action_set = lvls[lvl_in]
             yield (cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set)
 
+    def batches():
+        batch = []
+        self.step_counter += 1
+        s = self.frames.next()
+        cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set = s
+        batch.append(s)
+        if self.step_counter % self.network.batch_size == 0:
+            yield zip(*batch)
+            batch = []
+
     def _open_results_file(self):
         logging.info("OPENING " + self.exp_dir + '/results.csv')
         self.results_file = open(self.exp_dir + '/results.csv', 'w', 0)
@@ -215,7 +225,7 @@ class NeuralAgent(object):
             cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set = self.frames.next()
             state = (cat_input, ord_input, cat_iutput_prime, ord_input_prime)
             action_hat = self.network.choose_action(state, epsilon=0)
-
+            accuracy = action_hat == action
 
         #NOT TESTING---------------------------
         else:
@@ -224,6 +234,7 @@ class NeuralAgent(object):
 
             state = (cat_input, ord_input, cat_iutput_prime, ord_input_prime)
             action_hat = self.network.choose_action(state, self.epsilon)
+            accuracy = action_hat == action
 
             self.netowrk.train(state, action, action_set, reward)
 
