@@ -1,7 +1,7 @@
 import lasagne
 import numpy as np
 import theano
-import theano.tensor as T
+import theano.tensor as TT
 
 from updates import deepmind_rmsprop
 from architecture import build_wowah_network
@@ -40,11 +40,11 @@ class DeepQLearner:
                                                  num_frames, batch_size)
             self.reset_q_hat()
 
-        states = T.tensor4('states')
-        next_states = T.tensor4('next_states')
-        rewards = T.col('rewards')
-        actions = T.icol('actions')
-        terminals = T.icol('terminals')
+        states = TT.tensor4('states')
+        next_states = TT.tensor4('next_states')
+        rewards = TT.col('rewards')
+        actions = TT.icol('actions')
+        terminals = TT.icol('terminals')
 
         # Shared variables for training from a minibatch of replayed
         # state transitions, each consisting of num_frames + 1 (due to
@@ -76,15 +76,15 @@ class DeepQLearner:
         else:
             next_q_vals = lasagne.layers.get_output(self.l_out,
                                                     next_states / input_scale)
-            next_q_vals = theano.gradient.disconnected_grad(next_q_vals)
+            next_q_vals = theano.gradienTT.disconnected_grad(next_q_vals)
 
         terminalsX = terminals.astype(theano.config.floatX)
-        actionmask = T.eq(T.arange(num_actions).reshape((1, -1)),
+        actionmask = TT.eq(TT.arange(num_actions).reshape((1, -1)),
                           actions.reshape((-1, 1))).astype(theano.config.floatX)
 
         target = (rewards +
-                  (T.ones_like(terminalsX) - terminalsX) *
-                  self.discount * T.max(next_q_vals, axis=1, keepdims=True))
+                  (TT.ones_like(terminalsX) - terminalsX) *
+                  self.discount * TT.max(next_q_vals, axis=1, keepdims=True))
         output = (q_vals * actionmask).sum(axis=1).reshape((-1, 1))
         diff = target - output
 
@@ -95,26 +95,26 @@ class DeepQLearner:
             # linearly past the clip point to keep the gradient constant
             # in that regime.
             # 
-            # This is equivalent to declaring d loss/d q_vals to be
+            # This is equivalent to declaring \partial loss /\partial q_vals to be
             # equal to the clipped diff, then backpropagating from
             # there, which is what the DeepMind implementation does.
-            quadratic_part = T.minimum(abs(diff), self.clip_delta)
+            quadratic_part = TT.minimum(abs(diff), self.clip_delta)
             linear_part = abs(diff) - quadratic_part
             loss = 0.5 * quadratic_part ** 2 + self.clip_delta * linear_part
         else:
             loss = 0.5 * diff ** 2
 
         if batch_accumulator == 'sum':
-            loss = T.sum(loss)
+            loss = TT.sum(loss)
         elif batch_accumulator == 'mean':
-            loss = T.mean(loss)
+            loss = TT.mean(loss)
         else:
             raise ValueError("Bad accumulator: {}".format(batch_accumulator))
 
-        params = lasagne.layers.helper.get_all_params(self.l_out)  
+        params = lasagne.layers.helper.get_all_params(self.l_out)
         train_givens = {
-            states: self.imgs_shared[:, :-1],
-            next_states: self.imgs_shared[:, 1:],
+            states: self.imgs_shared[:, :-frame_skip],
+            next_states: self.imgs_shared[:, frame_skip:],
             rewards: self.rewards_shared,
             actions: self.actions_shared,
             terminals: self.terminals_shared
@@ -156,8 +156,7 @@ class DeepQLearner:
 
         Arguments:
 
-        imgs - b x (f + 1) x h x w numpy array, where b is batch size,
-               f is num frames, h is height and w is width.
+        imgs - b x (num_frame + frame_skip) x width x 1 numpy array
         actions - b x 1 numpy array of integers
         rewards - b x 1 numpy array
         terminals - b x 1 numpy boolean array (currently ignored)
