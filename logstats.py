@@ -117,6 +117,7 @@ def cat_user():
             fw.write(json.dumps(users))
 
 def userstats():
+    scores = []
     directory = 'data/users'
     users = os.listdir(directory)
     lvls_start = []
@@ -137,14 +138,17 @@ def userstats():
         lvls_start.append(lvl_start)
         lvls_end.append(lvl_end)
         lvls_elapses.append((elapse, lvl_end))
+        score = lvl_end ** 2 - lvl_start ** 2
+        scores.append(score)
     #plt.hist(lvls_start, bins=80)
     #plt.hist(lvls_end, bins=80)
-    plt.scatter(elapse, lvls_end)
-    plt.show()
-    return lvls_start, lvls_end, lvls_elapses
+    #plt.scatter(elapses, lvls_end)
+    plt.scatter(elapses, scores)
+    #plt.show()
+    return lvls_start, lvls_end, lvls_elapses, scores
 
 if __name__ == '__main__':
     #zones, cnt, mintt, maxguild = keymatch()
     #cat_user()
-    #userstats()
+    userstats()
     pass
