@@ -78,6 +78,7 @@ def keymatch():
     return zones, cnt, mintt, maxguild
 
 def cat_user():
+    ulvl = {}
     idx = 99
     users = {}
     fp = open('data/WoWAH_Node_Player_Fixed_Dynamic')
@@ -92,6 +93,7 @@ def cat_user():
         idx, user, tt, guild, lvl, race, category, zone, seq = s
         idx = int(idx)
         user = int(user)
+        lvl = int(lvl)
         tt = int(float(tt))
         tt = int(math.floor((tt - Mintt) / 600 + 0.5))
         if guild == 'Null':
@@ -105,9 +107,13 @@ def cat_user():
         if not zone in Zones:
             continue
         if user in users:
+            if not lvl >= ulvl[user]:
+                continue
             users[user] += 1
+            ulvl[user] = max(ulvl[user], lvl) 
         else:
             users[user] = 1
+            ulvl[user] = lvl
         s = (idx, user, tt, guild, lvl, Races[race], Categories[category], Zones[zone], seq)
         buf = ','.join([str(x) for x in s])
         with open('data/users/{0}.txt'.format(user), 'a') as fw:  
@@ -117,6 +123,7 @@ def cat_user():
             fw.write(json.dumps(users))
 
 def userstats():
+    power = 1.8
     scores = []
     directory = 'data/users'
     users = os.listdir(directory)
@@ -125,9 +132,11 @@ def userstats():
     lvls_elapses = []
     elapses = []
     for i, user in enumerate(users):
-        print(i)
+        if (i - 1) % 1000 == 0:
+            print(i - 1)
         if i > 300:
-            break
+            #break
+            pass
         with open(os.path.join(directory, user)) as fp:
             for idx, line in enumerate(fp):
                 if idx == 0:
@@ -138,17 +147,21 @@ def userstats():
         lvls_start.append(lvl_start)
         lvls_end.append(lvl_end)
         lvls_elapses.append((elapse, lvl_end))
-        score = lvl_end ** 2 - lvl_start ** 2
+
+        score = lvl_end ** power - lvl_start ** power
+        if score < 0:
+            print(user, lvl_start, lvl_end)
         scores.append(score)
     #plt.hist(lvls_start, bins=80)
     #plt.hist(lvls_end, bins=80)
+    #plt.hist(elapses, bins=80)
     #plt.scatter(elapses, lvls_end)
-    plt.scatter(elapses, scores)
-    #plt.show()
-    return lvls_start, lvls_end, lvls_elapses, scores
+    plt.scatter([min(x, 15000) for x in elapses], scores)
+    plt.show()
+    return lvls_start, lvls_end, lvls_elapses, scores, elapses
 
 if __name__ == '__main__':
     #zones, cnt, mintt, maxguild = keymatch()
     #cat_user()
-    userstats()
+    lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
     pass
