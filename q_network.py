@@ -194,6 +194,50 @@ def main():
     net = DeepQLearner(84, 84, 16, 4, .99, .00025, .95, .95, 10000,
                        32, 'nature_cuda')
 
+def flowtest():
+    from agent import frames, batches
+    UPDATE_RULE = 'deepmind_rmsprop'
+    BATCH_ACCUMULATOR = 'sum'
+    LEARNING_RATE = .00025
+    DISCOUNT = .99
+    RMS_DECAY = .95 # \rho
+    RMS_EPSILON = .01
+    MOMENTUM = 0
+    CLIP_DELTA = 1.0
+    EPSILON_START = 1.0
+    EPSILON_MIN = .1
+    EPSILON_DECAY = 1000000
+    PHI_LENGTH = 4
+    UPDATE_FREQUENCY = 4
+    REPLAY_MEMORY_SIZE = 1000000
+    BATCH_SIZE = 32
+    NETWORK_TYPE = "nature_dnn"
+    FREEZE_INTERVAL = 10000
+    REPLAY_START_SIZE = 50000
+    RESIZE_METHOD = 'scale'
+    RESIZED_WIDTH = 84
+    RESIZED_HEIGHT = 84
+    DEATH_ENDS_EPISODE = 'true'
+    MAX_START_NULLOPS = 30
+    DETERMINISTIC = True
+    CUDNN_DETERMINISTIC = False
+    s = DeepQLearner(input_width=6, 
+                input_height=1, 
+                num_actions=165,
+                num_frames=10, 
+                discount=0.99, 
+                learning_rate=0.00025, 
+                rho=0.95,
+                rms_epsilon=0.01, 
+                momentum=0, 
+                clip_delta=1.0, 
+                freeze_interval=100,
+                batch_size=32, 
+                network_type='notdeepatallqnetwork', 
+                update_rule,
+                batch_accumulator='sum', 
+                rng = np.random.RandomState(123456))
 
 if __name__ == '__main__':
-    main()
+    flowtest()
+    

@@ -39,6 +39,20 @@ class T_T(lasagne.layers.Layer):
             activation = activation + self.b.dimshuffle('x', 0)
         return self.nonlinearity(activation)
 
+class QwQ(lasagne.layers.Layer):
+    '''
+    改个type也不行.. Excuse me???? (｡ŏ﹏ŏ)
+    '''
+    def __init__(self, incoming, dtype, **kwargs):
+        super(T_T, self).__init__(incoming, **kwargs)
+        self.dtype = dtype
+
+    def get_output_shape_for(self, input_shape):
+        return input_shape
+
+    def get_output_for(self, input_tensor, **kwargs):
+        return input_tensor.astype(dtype)
+
 def build_wowah_network(num_frames=50, input_width=6, cat_length=4, cat_size=[10,11,12,13], output_dim=160):
 
     input_height = 1
@@ -58,8 +72,13 @@ def build_wowah_network(num_frames=50, input_width=6, cat_length=4, cat_size=[10
             axis=2,
         )
 
-        cat_embed = lasagne.layers.EmbeddingLayer(
+        cat_int = QwQ(
             cat_slice,
+            dtype='uint8',
+        )
+
+        cat_embed = lasagne.layers.EmbeddingLayer(
+            cat_int,
             input_size=cat_size[idx],
             output_size=25,
             W=lasagne.init.Normal(.01),

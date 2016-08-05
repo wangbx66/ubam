@@ -1,11 +1,3 @@
-"""
-The NeuralAgent class wraps a deep Q-network for training and testing
-in the Arcade learning environment.
-
-Author: Nathan Sprague
-
-"""
-
 import os
 import cPickle
 import time
@@ -18,6 +10,107 @@ import ale_data_set
 import sys
 sys.setrecursionlimit(10000)
 
+def frames_dep(num_frames=-1, require_expert):
+    self.num_cat_feature = 4
+    self.num_ord_feature = 2
+    with open('data/zonesjson.txt') as fp:
+        zones = json.loads(fp.readline())
+        lvls = json.loads(fp.readline())
+    if require_expert:
+        fp = open('data/expertsjson.txt')
+    else:
+        fp = open('data/usersjson.txt')
+    users = json.loads(fp.readline())
+    k = np.array(users.keys())
+    p = np.array(users.values())
+    p /= (p - self.frame_length).sum()
+    fp.close()
+    while True:
+        if num_frames > 0:
+            num_frames -= 1
+            if num_frames == 0:
+                break
+        user = rng.choice(k, p=p)
+        cat_input = np.zeros((self.frame_length, self.num_cat_feature), dtype=np.uint8)
+        ord_input = np.zeros((self.frame_length, self.num_ord_feature), dtype=np.float32)
+        cat_iutput_prime = np.zeros((self.frame_length, self.num_cat_feature), dtype=np.uint8)
+        ord_iutput_prime = np.zeros((self.frame_length, self.num_ord_feature), dtype=np.float32)
+        reward = 0
+        action = 0
+        with open(os.path.join('data/users', user)) as fp:
+            start = rng.uniform(low=0, high=users[user] - frame_skip - frame_length)
+
+            for idx, line in enumerate(fp):
+                idx_logstats, user, tt, guild, lvl, race, category, zone, seq = line.strip().split(',')
+                if idx >= start and idx < start + frame_length:
+                    cat_input[idx] = np.array([guild, race, category, zone])
+                    ord_input[idx] = np.array([lvl, idx])
+                if idx >= start + frame_skip and idx < start + frame_length + frame_skip:
+                    cat_input_prime[idx] = np.array([guild, race, category, zone])
+                    ord_input_prime[idx] = np.array([lvl, idx])
+                if idx == start + frame_length - 1:
+                    lvl_in = lvl
+                if idx == start + frame_length + frame_skip - 1:
+                    lvl_out = lvl
+        reward = lvl_out - lvl_in
+        action = np.argmax(np.bincount(cat_input_prime[-frame_skip:, -1]))
+        action_set = lvls[lvl_in]
+        yield (cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set)
+
+def frames(num_frames=10, skip_frames=4, require_expert=False):
+    num_cat_feature = 4
+    num_ord_feature = 2
+    with open('data/zonesjson.txt') as fp:
+        zones = json.loads(fp.readline())
+        lvls = json.loads(fp.readline())
+    if require_expert:
+        fp = open('data/expertsjson.txt')
+    else:
+        fp = open('data/usersjson.txt')
+    users = json.loads(fp.readline())
+    k = np.array(list(users.keys()))
+    p = np.array(list(users.values()))
+    p /= (p - num_frames).sum()
+    fp.close()
+    while True:
+        if num_frames > 0:
+            num_frames -= 1
+            if num_frames == 0:
+                break
+        user = rng.choice(k, p=p)
+        cat_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
+        reward = 0
+        action = 0
+        with open(os.path.join('data/users', user)) as fp:
+            start = rng.uniform(low=0, high=users[user] - frame_skip - frame_length)
+            for idx, line in enumerate(fp):
+                idx_logstats, user, tt, guild, lvl, race, category, zone, seq = line.strip().split(',')
+                if idx >= start and idx < start + frame_length:
+                    cat_input[idx] = np.array([guild, race, category, zone])
+                    ord_input[idx] = np.array([lvl, idx])
+                if idx >= start + frame_skip and idx < start + frame_length + frame_skip:
+                    cat_input_prime[idx] = np.array([guild, race, category, zone])
+                    ord_input_prime[idx] = np.array([lvl, idx])
+                if idx == start + num_frames - 1:
+                    lvl_in = lvl
+                if idx == start + num_frames + frame_skip - 1:
+                    lvl_out = lvl
+        reward = lvl_out - lvl_in
+        action = np.argmax(np.bincount(cat_input_prime[-frame_skip:, -1]))
+        action_set = lvls[lvl_in]
+        yield (cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set)
+
+
+def batches():
+    batch = []
+    self.step_counter += 1
+    s = self.frames.next()
+    cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set = s
+    batch.append(s)
+    if self.step_counter % self.network.batch_size == 0:
+        yield zip(*batch)
+        batch = []
+        
 class NeuralAgent(object):
 
     def __init__(self, q_network, epsilon_start, epsilon_min,
@@ -34,7 +127,6 @@ class NeuralAgent(object):
         self.replay_memory_size = replay_memory_size
         
         self.replay_start_size = replay_start_size
-        
 
         self.phi_length = self.network.num_frames
         self.frame_length = self.phi_length
@@ -81,61 +173,7 @@ class NeuralAgent(object):
         self.dataset_train = self.frames(-1, require_expert=False)
         self.dataset_test = self.frames(-1, require_expert=True)
 
-    def frames(num_frames=-1, require_expert):
-        self.num_cat_feature = 4
-        self.num_ord_feature = 2
-        with open('data/zonesjson.txt') as fp:
-            zones = json.loads(fp.readline())
-            lvls = json.loads(fp.readline())
-        if require_expert:
-            fp = open('data/expertsjson.txt')
-        else:
-            fp = open('data/usersjson.txt')
-        users = json.loads(fp.readline())
-        k = np.array(users.keys())
-        p = np.array(users.values())
-        p /= (p - self.frame_length).sum()
-        fp.close()
-        while True:
-            if num_frames > 0:
-                num_frames -= 1
-                if num_frames == 0:
-                    break
-            user = rng.choice(k, p=p)
-            cat_input = np.zeros((self.frame_length, self.num_cat_feature), dtype=np.uint8)
-            ord_input = np.zeros((self.frame_length, self.num_ord_feature), dtype=np.float32)
-            cat_iutput_prime = np.zeros((self.frame_length, self.num_cat_feature), dtype=np.uint8)
-            ord_iutput_prime = np.zeros((self.frame_length, self.num_ord_feature), dtype=np.float32)
-            reward = 0
-            action = 0
-            with open(os.path.join('data/users', user)) as fp:
-                start = rng.uniform(low=0, high=users[user] - frame_skip - frame_length)
-                for idx, line in enumerate(fp):
-                    idx_logstats, user, tt, guild, lvl, race, category, zone, seq = line.strip().split(',')
-                    if idx >= start and idx < start + frame_length:
-                        cat_input[idx] = np.array([guild, race, category, zone])
-                        ord_input[idx] = np.array([lvl, idx])
-                    if idx >= start + frame_skip and idx < start + frame_length + frame_skip:
-                        cat_input_prime[idx] = np.array([guild, race, category, zone])
-                        ord_input_prime[idx] = np.array([lvl, idx])
-                    if idx == start + frame_length - 1:
-                        lvl_in = lvl
-                    if idx == start + frame_length + frame_skip - 1:
-                        lvl_out = lvl
-            reward = lvl_out - lvl_in
-            action = np.argmax(np.bincount(cat_input_prime[-frame_skip:, -1]))
-            action_set = lvls[lvl_in]
-            yield (cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set)
 
-    def batches():
-        batch = []
-        self.step_counter += 1
-        s = self.frames.next()
-        cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set = s
-        batch.append(s)
-        if self.step_counter % self.network.batch_size == 0:
-            yield zip(*batch)
-            batch = []
 
     def _open_results_file(self):
         logging.info("OPENING " + self.exp_dir + '/results.csv')
