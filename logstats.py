@@ -82,6 +82,8 @@ def cat_user():
     idx = 99
     users = {}
     fp = open('data/WoWAH_Node_Player_Fixed_Dynamic')
+    if not os.path.exists('data/users'):
+        os.makedirs('data/users')
     for line in fp:
         if line.startswith('#') or line.startswith('RowID'):
             continue
@@ -107,10 +109,12 @@ def cat_user():
         if not zone in Zones:
             continue
         if user in users:
-            if not lvl >= ulvl[user]:
+            current = ulvl[user]
+            if not lvl >= current:
                 continue
             users[user] += 1
-            ulvl[user] = max(ulvl[user], lvl) 
+            if lvl > current:
+                ulvl[user] = lvl
         else:
             users[user] = 1
             ulvl[user] = lvl
@@ -119,24 +123,31 @@ def cat_user():
         with open('data/users/{0}.txt'.format(user), 'a') as fw:  
             fw.write(buf)
             fw.write('\n')
-        with open('data/usersjson_sketch.txt', 'w') as fw:
-            fw.write(json.dumps(users))
+        if idx % 50000 == 0:
+            try:
+                with open('data/usersjson_sketch.txt', 'w') as fw:
+                    fw.write(json.dumps(users))
+            except KeyboardInterrupt:
+                pass
+    with open('data/usersjson_sketch.txt', 'w') as fw:
+        fw.write(json.dumps(users))
 
 def userstats():
+    with open('data/usersjson_sketch.txt') as fp:
+        user_sketch = json.loads(fp.readline())
     power = 1.8
     scores = []
     directory = 'data/users'
-    users = os.listdir(directory)
+    usersdir = os.listdir(directory)
+    totaluser = len(usersdir)
     lvls_start = []
     lvls_end = []
     lvls_elapses = []
     elapses = []
-    for i, user in enumerate(users):
-        if (i - 1) % 1000 == 0:
-            print(i - 1)
-        if i > 300:
-            #break
-            pass
+    users = {}
+    for i, user in enumerate(usersdir):
+        if i % 10000 == 0:
+            print("{0}/{1}".format(i, totaluser))
         with open(os.path.join(directory, user)) as fp:
             for idx, line in enumerate(fp):
                 if idx == 0:
@@ -152,12 +163,16 @@ def userstats():
         if score < 0:
             print(user, lvl_start, lvl_end)
         scores.append(score)
+        if score / elapse > 1: # but this will exclude those addicted
+            users[user.split('.')[0]] = user_sketch[user.split('.')[0]]
+    with open('data/usersjson.txt', 'w') as fw:
+        fw.write(json.dumps(users))
     #plt.hist(lvls_start, bins=80)
     #plt.hist(lvls_end, bins=80)
     #plt.hist(elapses, bins=80)
     #plt.scatter(elapses, lvls_end)
-    plt.scatter([min(x, 15000) for x in elapses], scores)
-    plt.show()
+    #plt.scatter([min(x, 15000) for x in elapses], scores)
+    #plt.show()
     return lvls_start, lvls_end, lvls_elapses, scores, elapses
 
 if __name__ == '__main__':

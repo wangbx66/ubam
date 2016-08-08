@@ -1,16 +1,15 @@
 import os
-import cPickle
+import pickle
+import json
 import time
 import logging
 
 import numpy as np
 
-import ale_data_set
-
 import sys
 sys.setrecursionlimit(10000)
 
-def frames_dep(num_frames=-1, require_expert):
+def frames_dep(num_frames=-1, require_expert=False):
     self.num_cat_feature = 4
     self.num_ord_feature = 2
     with open('data/zonesjson.txt') as fp:
@@ -57,48 +56,59 @@ def frames_dep(num_frames=-1, require_expert):
         action_set = lvls[lvl_in]
         yield (cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set)
 
-def frames(num_frames=10, skip_frames=4, require_expert=False):
+def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.RandomState(123456)):
     num_cat_feature = 4
     num_ord_feature = 2
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
         lvls = json.loads(fp.readline())
+    lvls = {int(x):lvls[x] for x in lvls}
     if require_expert:
-        fp = open('data/expertsjson.txt')
-    else:
         fp = open('data/usersjson.txt')
+    else:
+        fp = open('data/usersjson_sketch.txt')
     users = json.loads(fp.readline())
-    k = np.array(list(users.keys()))
-    p = np.array(list(users.values()))
-    p /= (p - num_frames).sum()
+    users = {int(x):users[x] for x in users if users[x] > 2 * num_frames}
+    print(min(list(users.values())))
+    k = np.array(list(users.keys()), dtype=np.uint64)
+    p = np.array(list(users.values()), dtype=np.float32)
+    norm = (p - num_frames).sum()
+    p /= norm
+    p /= p.sum()
     fp.close()
+    frame = 0
+    net_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
+    reward = 0
+    action = 0
+    power = 2.3
     while True:
-        if num_frames > 0:
-            num_frames -= 1
-            if num_frames == 0:
-                break
         user = rng.choice(k, p=p)
-        cat_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
-        reward = 0
-        action = 0
-        with open(os.path.join('data/users', user)) as fp:
-            start = rng.uniform(low=0, high=users[user] - frame_skip - frame_length)
+        start = rng.randint(low=0, high=users[user] - num_frames - skip_frames)
+        with open(os.path.join('data/users', '{0}.txt'.format(user))) as fp:
             for idx, line in enumerate(fp):
+                
                 idx_logstats, user, tt, guild, lvl, race, category, zone, seq = line.strip().split(',')
-                if idx >= start and idx < start + frame_length:
-                    cat_input[idx] = np.array([guild, race, category, zone])
-                    ord_input[idx] = np.array([lvl, idx])
-                if idx >= start + frame_skip and idx < start + frame_length + frame_skip:
-                    cat_input_prime[idx] = np.array([guild, race, category, zone])
-                    ord_input_prime[idx] = np.array([lvl, idx])
+                if idx >= start and idx < start + num_frames + skip_frames:
+                    #print(idx, start, start + num_frames + skip_frames - 1)
+                    # possible additional features
+                    # the time elapse during current zone
+                    # the time elapse during current session
+                    # the player total time spending
+                    net_input[idx - start, :, 0] = np.array([guild, race, category, zone, lvl, idx])
                 if idx == start + num_frames - 1:
-                    lvl_in = lvl
-                if idx == start + num_frames + frame_skip - 1:
-                    lvl_out = lvl
-        reward = lvl_out - lvl_in
-        action = np.argmax(np.bincount(cat_input_prime[-frame_skip:, -1]))
+                    lvl_in = int(lvl)
+                if idx == start + num_frames + skip_frames - 1:
+                    lvl_out = int(lvl)
+        reward = lvl_out ** power - lvl_in ** power
+        action = np.argmax(np.bincount(net_input[-skip_frames:, -1].reshape((skip_frames, )).astype(np.uint8)))
         action_set = lvls[lvl_in]
-        yield (cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set)
+        frame += 1
+        if frame == num_frames:
+            yield (net_input, reward, action, action_set)
+            frame = 0
+            net_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
+            reward = 0
+            action = 0
 
 
 def batches():
@@ -377,4 +387,6 @@ class NeuralAgent(object):
 
 
 if __name__ == "__main__":
-    pass
+    g = frames()
+    for x in g:
+        print(x[0].shape, x[1], x[2], x[3])

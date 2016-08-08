@@ -13,11 +13,10 @@ Continents = {'Northrend': 0, 'Other': 1, 'Eastern Kingdoms': 2, 'Ouland': 3, 'K
 Areas = {"Quel'Thalas": 0, 'Central Kalimdor': 1, 'Lordaeron': 2, 'Azeroth': 3, 'Northern Kalimdor': 4, 'Khaz Modan': 5, 'Outland': 6, 'The Forbidding Sea': 7, 'Northrend': 8, 'Null': 9, 'Southern Kalimdor': 10, 'The Veiled Sea': 11}
 Zonetypes = {'Arena': 0, 'City': 1, 'Zone': 2, 'Dungeon': 3, 'Transit': 4, 'Sea': 5, 'Battleground': 6, 'Event': 7}
 Lords = {'PvP': 0, 'Contested': 1, 'Horde': 2, 'Alliance': 3, 'Sanctuary': 4}
-Maps = {0, 1, 530, 571}
 
 def zoneattr():
-    fp = open('data/zones.txt')
-    fp.next()
+    fp = open('data/zones.csv')
+    fp.__next__()
 
     continents = {'Null': 0}
     areas = {'Null': 0}
@@ -55,11 +54,11 @@ def zoneattr():
     return continents, areas, zonetypes, lords
 
 def zonematch():
-    fp = open('data/zones.txt')
-    fp.next()
+    fp = open('data/zones.csv')
+    fp.__next__()
 
     zones = {}
-    lvls = {x+1:set() for x in range(100)}
+    lvls = {x + 1:set() for x in range(100)}
     alters = set()
     g = csv.reader(fp, delimiter=',', quotechar='"')
     for s in g:
@@ -67,8 +66,8 @@ def zonematch():
             continue
         zone, continent, area, alter, subzone, zonetype, size, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max = s
         zone = re.sub(pp, repl, zone)
-        zone = zone.decode('unicode-escape').encode('utf-8')
-        
+        zone = zone.encode('utf-8').decode('unicode-escape')
+
         if not zone in Zones:
             print('zone "{0}" not found'.format(zone))
             continue
@@ -115,20 +114,22 @@ def zonematch():
 def zoneadj():
     locations = {}
     fp = open('data/location_coords.csv')
-    fp.next()
+    fp.__next__()
     g = csv.reader(fp, delimiter=',', quotechar='"')
     for s in g:
         if not s:
             continue
         location, mapid, x, y, z = s
         if ':' in location:
-            loc1, loc2 = location.split(':')
-            loc1 = loc1.strip()
-            loc2 = loc2.strip()
+            loc1 = location.split(':')[0].strip()
+            loc2 = location.split(':')[1].strip()
         else:
-            loc1 = location.strip()
+            loc2 = location.split(':')[0].strip()
             loc2 = ''
-        mapid = int(mapid)
+        try:
+            mapid = int(mapid)
+        except ValueError:
+            continue
         x = float(x)
         y = float(y)
         z = float(z)
@@ -136,9 +137,12 @@ def zoneadj():
             if zone in loc2:
                 locations[zone] = (x, y, z)
             elif zone in loc1:
-                if not zone in loc1:
+                if not zone in locations:
                     locations[zone] = (x, y, z)
+        s = set(Zones.keys())
+        t = set(locations.keys())
+
 
 if __name__ == '__main__':
-    #zonematch()
+    zones, lvls = zonematch()
     pass
