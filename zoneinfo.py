@@ -101,7 +101,8 @@ def zonematch():
         area = Areas[area]
         zonetype = Zonetypes[zonetype]
         lord = Lords[lord]
-        for x in range(lvl_entry, lvl_rec_max + 1):
+        #for x in range(lvl_entry, lvl_rec_max + 1):
+        for x in range(lvl_entry, 100 + 1):
             lvls[x].add(zone)
         zones[zone] = (continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max)
     lvls = {x:list(lvls[x]) for x in lvls}

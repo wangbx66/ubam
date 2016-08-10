@@ -3,6 +3,7 @@ import pickle
 import json
 import time
 import logging
+from itertools import islice
 
 import numpy as np
 
@@ -62,6 +63,7 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
         lvls = json.loads(fp.readline())
+    zones = {int(x):zones[x] for x in zones}
     lvls = {int(x):lvls[x] for x in lvls}
     if require_expert:
         fp = open('data/usersjson.txt')
@@ -69,7 +71,6 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
         fp = open('data/usersjson_sketch.txt')
     users = json.loads(fp.readline())
     users = {int(x):users[x] for x in users if users[x] > 2 * num_frames}
-    print(min(list(users.values())))
     k = np.array(list(users.keys()), dtype=np.uint64)
     p = np.array(list(users.values()), dtype=np.float32)
     norm = (p - num_frames).sum()
@@ -100,8 +101,12 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
                 if idx == start + num_frames + skip_frames - 1:
                     lvl_out = int(lvl)
         reward = lvl_out ** power - lvl_in ** power
-        action = np.argmax(np.bincount(net_input[-skip_frames:, -1].reshape((skip_frames, )).astype(np.uint8)))
+        #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
+        action = net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)
         action_set = lvls[lvl_in]
+        if not action[0] in action_set:
+            print(action, lvl_in)
+            print(zones[action[0]])
         frame += 1
         if frame == num_frames:
             yield (net_input, reward, action, action_set)
@@ -111,15 +116,25 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
             action = 0
 
 
-def batches():
+def batches(batch_size=32):
+    g = frames()
     batch = []
-    self.step_counter += 1
-    s = self.frames.next()
-    cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set = s
-    batch.append(s)
-    if self.step_counter % self.network.batch_size == 0:
-        yield zip(*batch)
-        batch = []
+    idx = 0
+    while True:
+        batch.append(g.__next__())
+        idx += 1
+        if idx == batch_size:
+            yield [np.array(x) for x in zip(*batch)]
+            idx = 0
+            batch = []
+
+def h5dump(path='data/h5', size=100000, batch_size=32):
+    
+    
+
+
+def h5():
+    
         
 class NeuralAgent(object):
 
@@ -387,6 +402,16 @@ class NeuralAgent(object):
 
 
 if __name__ == "__main__":
-    g = frames()
-    for x in g:
-        print(x[0].shape, x[1], x[2], x[3])
+    #g = frames()
+    g = batches()
+    with open('data/zonesjson.txt') as fp:
+        zones = json.loads(fp.readline())
+    cnt1 = 0
+    cnt2 = 1
+    for i, x in islice(enumerate(g), 20):
+        print(i, x[0].shape)
+    #    if x[2] in x[3]:
+    #        cnt1 +=1
+    #    cnt2 += 1
+    #    print('{0}/{1}'.format(cnt1, cnt2))
+        #print(x[0].shape, x[1], x[2], x[3])
