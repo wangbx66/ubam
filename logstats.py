@@ -70,7 +70,7 @@ def keymatch():
         if cnt[zone] < 50:
             del zones[zone]
     clear(zones)
-    with open('tmp.txt', 'w') as fw:
+    with open('data/tmp.txt', 'w') as fw:
         fw.write(str(zones))
         fw.write('\n')
         fw.write(str(cnt))
@@ -175,8 +175,47 @@ def userstats():
     #plt.show()
     return lvls_start, lvls_end, lvls_elapses, scores, elapses
 
+def trajectory():
+    zonepair = {}
+    userlist = os.listdir('data/users')
+    for iuser, user in enumerate(userlist):
+        if iuser % 1000 == 0:
+            print(iuser)
+        with open(os.path.join('data/users', user)) as fp:
+            for idx, line in enumerate(fp):
+                if idx == 0:
+                    previous_zone = line.strip().split(',')[7]
+                zone = line.strip().split(',')[7]
+                if not zone == previous_zone:
+                    if (previous_zone, zone) in zonepair:
+                        zonepair[(previous_zone, zone)] += 1
+                    else:
+                        zonepair[(previous_zone, zone)] = 1
+                    if previous_zone in zonepair:
+                        zonepair[previous_zone] += 1
+                    else:
+                        zonepair[previous_zone] = 1
+                    previous_zone = zone
+    for threshold in [10]:
+        pairs = [x for x in zonepair if type(x) is tuple and zonepair[x]/zonepair[x[0]] > 0.01 * threshold]
+        transaction = {}
+        for x in pairs:
+            if x[0] in transaction:
+                transaction[x[0]].append(x[1])
+            else:
+                transaction[x[0]] = [x[1]]
+        with open('data/transactionjson.txt', 'w') as fw:
+            fw.write(json.dumps(transaction))
+        avg = sum(len(transaction[x]) for x in transaction)/len(transaction)
+        print(threshold, len(transaction), len(Zones), avg)
+        for zone in Zones:
+            if not str(Zones[zone]) in transaction:
+                print(Zones[zone], zone)
+    return transaction
+
 if __name__ == '__main__':
     #zones, cnt, mintt, maxguild = keymatch()
     #cat_user()
-    lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
+    transaction = trajectory()
+    #lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
     pass

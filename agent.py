@@ -6,6 +6,7 @@ import logging
 from itertools import islice
 
 import numpy as np
+import h5py
 
 import sys
 sys.setrecursionlimit(10000)
@@ -87,20 +88,19 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
         start = rng.randint(low=0, high=users[user] - num_frames - skip_frames)
         with open(os.path.join('data/users', '{0}.txt'.format(user))) as fp:
             for idx, line in enumerate(fp):
-                
-                idx_logstats, user, tt, guild, lvl, race, category, zone, seq = line.strip().split(',')
                 if idx >= start and idx < start + num_frames + skip_frames:
+                    idx_logstats, user, tt, guild, lvl, race, category, zone, seq = line.strip().split(',')
                     #print(idx, start, start + num_frames + skip_frames - 1)
                     # possible additional features
                     # the time elapse during current zone
                     # the time elapse during current session
                     # the player total time spending
                     net_input[idx - start, :, 0] = np.array([guild, race, category, zone, lvl, idx])
-                if idx == start + num_frames - 1:
-                    lvl_in = int(lvl)
-                if idx == start + num_frames + skip_frames - 1:
-                    lvl_out = int(lvl)
-        reward = lvl_out ** power - lvl_in ** power
+                    if idx == start + num_frames - 1:
+                        lvl_in = int(lvl)
+                    if idx == start + num_frames + skip_frames - 1:
+                        lvl_out = int(lvl)
+        reward = np.int64(lvl_out ** power - lvl_in ** power)
         #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
         action = net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)
         action_set = lvls[lvl_in]
@@ -129,6 +129,16 @@ def batches(batch_size=32):
             batch = []
 
 def h5dump(path='data/h5', size=100000, batch_size=32):
+    s = frames().__next__()
+    with open('data/zonesjson.txt') as fp:
+        zones = json.loads(fp.readline())
+    num_zones = len(zones)
+    shape = [x.shape for x in s]
+    f = h5py.File('data/episodes', 'w')
+    f.create_dataset('context', (size, *shape[0]), 'f')
+    f.create_dataset('reward', (size, *shape[1]), 'f')
+    f.create_dataset('action', (size, *shape[2]), 'i64')
+    f.create_dataset('candidates', (size, num_zones), 'i64')
     
     
 
