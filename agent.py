@@ -64,8 +64,11 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
         lvls = json.loads(fp.readline())
+    with open('data/transactionjson.txt') as fp:
+        transactions = json.loads(fp.readline())
     zones = {int(x):zones[x] for x in zones}
     lvls = {int(x):lvls[x] for x in lvls}
+    transactions = {int(x):transactions[x] for x in transactions}
     if require_expert:
         fp = open('data/usersjson.txt')
     else:
@@ -95,18 +98,34 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
                     # the time elapse during current zone
                     # the time elapse during current session
                     # the player total time spending
-                    net_input[idx - start, :, 0] = np.array([guild, race, category, zone, lvl, idx])
+                    lvl = int(lvl)
+                    norm_lvl = lvl / 70
+                    norm_idx = min(idx / 1500, 1.1)
+                    net_input[idx - start, :, 0] = np.array([guild, race, category, zone, norm_lvl, norm_idx])
                     if idx == start + num_frames - 1:
-                        lvl_in = int(lvl)
+                        lvl_in = lvl
                     if idx == start + num_frames + skip_frames - 1:
-                        lvl_out = int(lvl)
-        reward = np.int64(lvl_out ** power - lvl_in ** power)
+                        lvl_out = lvl
+        reward = np.float32(lvl_out ** power - lvl_in ** power)
         #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
         action = net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)
-        action_set = lvls[lvl_in]
-        if not action[0] in action_set:
-            print(action, lvl_in)
-            print(zones[action[0]])
+        action_set_lvl = lvls[lvl_in]
+        last_zone = net_input[-(skip_frames+1), -3, 0].astype(np.uint8)
+        if last_zone in transactions:
+            action_set_transaction = transactions[last_zone]
+        else:
+            print("*zone too minor")
+            continue
+        if not action[0] in action_set_lvl:
+            #print("*overlevel zone")
+            #print("actual zones {0}".format(action))
+            #print("zone require {0} and current level {1}".format(zones[action[0]][4], lvl_in))
+            continue
+        action_set = list(set(action_set_lvl) | set(action_set_transaction))
+        if not action_set:
+            print("*no adjacent zone")
+            continue
+        
         frame += 1
         if frame == num_frames:
             yield (net_input, reward, action, action_set)
@@ -114,7 +133,6 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
             net_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
             reward = 0
             action = 0
-
 
 def batches(batch_size=32):
     g = frames()
@@ -128,23 +146,40 @@ def batches(batch_size=32):
             idx = 0
             batch = []
 
-def h5dump(path='data/h5', size=100000, batch_size=32):
+def hdf_dump(path='data/episodes.hdf', size=100000):
     s = frames().__next__()
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
     num_zones = len(zones)
-    shape = [x.shape for x in s]
-    f = h5py.File('data/episodes', 'w')
-    f.create_dataset('context', (size, *shape[0]), 'f')
-    f.create_dataset('reward', (size, *shape[1]), 'f')
-    f.create_dataset('action', (size, *shape[2]), 'i64')
-    f.create_dataset('candidates', (size, num_zones), 'i64')
-    
-    
+    shape = [x.shape for x in s[:-1]]
+    with h5py.File(path, 'w') as fw:
+        context = fw.create_dataset('context', (size, *shape[0]), 'f')
+        reward = fw.create_dataset('reward', (size, *shape[1]), 'f')
+        action = fw.create_dataset('action', (size, *shape[2]), 'i')
+        candidates = fw.create_dataset('candidates', (size, num_zones), 'i')
+        for idx, frame in enumerate(frames()):
+            if idx == size:
+                break
+            if idx % 1000 == 0:
+                fw.flush()
+                print(idx)
+            context[idx] = frame[0]
+            reward[idx] = frame[1]
+            action[idx] = frame[2]
+            candidates[idx] = np.array([int(x in frame[3]) for x in range(num_zones)])
 
-
-def h5():
-    
+def hdf(path='data/episodes.hdf', batch_size=32, num_batch=1000):
+    fp = h5py.File(path)
+    context = fp['context']
+    assert(context.shape[0] > batch_size * num_batch)
+    reward = fp['reward']
+    action = fp['action']
+    candidates = fp['candidates']
+    for idx in range(num_batch):
+        yield (context[idx*batch_size:(idx+1)*batch_size],  # keep intact for all other dimensions
+            reward[idx*batch_size:(idx+1)*batch_size],
+            action[idx*batch_size:(idx+1)*batch_size],
+            candidates[idx*batch_size:(idx+1)*batch_size],)
         
 class NeuralAgent(object):
 
@@ -412,14 +447,17 @@ class NeuralAgent(object):
 
 
 if __name__ == "__main__":
+    hdf_dump(size=100000)
+    for x in hdf(num_batch=100):
+        print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
     #g = frames()
-    g = batches()
-    with open('data/zonesjson.txt') as fp:
-        zones = json.loads(fp.readline())
-    cnt1 = 0
-    cnt2 = 1
-    for i, x in islice(enumerate(g), 20):
-        print(i, x[0].shape)
+    #g = batches()
+    #with open('data/zonesjson.txt') as fp:
+    #    zones = json.loads(fp.readline())
+    #cnt1 = 0
+    #cnt2 = 1
+    #for i, x in islice(enumerate(g), 20):
+    #    print(i, x[0].shape)
     #    if x[2] in x[3]:
     #        cnt1 +=1
     #    cnt2 += 1

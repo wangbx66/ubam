@@ -210,12 +210,16 @@ def trajectory():
         print(threshold, len(transaction), len(Zones), avg)
         for zone in Zones:
             if not str(Zones[zone]) in transaction:
+                try:
+                    print(zonepair[zone])
+                except:
+                    print('never appeared')
                 print(Zones[zone], zone)
-    return transaction
+    return locals()
 
 if __name__ == '__main__':
     #zones, cnt, mintt, maxguild = keymatch()
     #cat_user()
-    transaction = trajectory()
+    s = trajectory()
     #lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
     pass
