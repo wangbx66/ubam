@@ -110,9 +110,9 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
         #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
         action = net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)
         action_set_lvl = lvls[lvl_in]
-        last_zone = net_input[-(skip_frames+1), -3, 0].astype(np.uint8)
+        last_zone = net_input[-(skip_frames + 1), -3, 0].astype(np.uint8)
         if last_zone in transactions:
-            action_set_transaction = transactions[last_zone]
+            action_set_transaction = transactions[last_zone] + [last_zone, ]
         else:
             print("*zone too minor")
             continue
@@ -121,10 +121,12 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
             #print("actual zones {0}".format(action))
             #print("zone require {0} and current level {1}".format(zones[action[0]][4], lvl_in))
             continue
-        action_set = list(set(action_set_lvl) | set(action_set_transaction))
+        action_set = list(set(action_set_lvl) & set(action_set_transaction))
         if not action_set:
             print("*no adjacent zone")
+            print(action_set_lvl, action_set_transaction)
             continue
+
         
         frame += 1
         if frame == num_frames:
@@ -147,6 +149,7 @@ def batches(batch_size=32):
             batch = []
 
 def hdf_dump(path='data/episodes.hdf', size=100000):
+    cd_size = 0
     s = frames().__next__()
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
@@ -167,6 +170,8 @@ def hdf_dump(path='data/episodes.hdf', size=100000):
             reward[idx] = frame[1]
             action[idx] = frame[2]
             candidates[idx] = np.array([int(x in frame[3]) for x in range(num_zones)])
+            cd_size += len(frame[3])
+    print("averaged #candidate = {0}".format(cd_size / size))
 
 def hdf(path='data/episodes.hdf', batch_size=32, num_batch=1000):
     fp = h5py.File(path)
@@ -446,8 +451,8 @@ class NeuralAgent(object):
 
 if __name__ == "__main__":
     hdf_dump(size=100000)
-    for x in hdf(num_batch=100):
-        print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
+    #for x in hdf(num_batch=100):
+    #    print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
     #g = frames()
     #g = batches()
     #with open('data/zonesjson.txt') as fp:

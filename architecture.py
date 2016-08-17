@@ -52,8 +52,7 @@ class T_T(lasagne.layers.Layer):
         if input_tensor.ndim > 3:
             input_tensor = input_tensor.flatten(3)
 
-        #activation = TT.tensordot(input_tensor, self.W, axes=(2, 1))
-        activation = TT.dot(input_tensor, self.W)
+        activation = TT.tensordot(input_tensor, self.W, axes=(2, 0))
         if self.b is not None:
             activation = activation + self.b.dimshuffle('x', 'x', 0, 'x')
         return self.nonlinearity(activation)
@@ -72,12 +71,14 @@ class QwQ(lasagne.layers.Layer):
     def get_output_for(self, input_tensor, **kwargs):
         return input_tensor.astype(self.dtype)
 
-def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[512,5,10,165], output_dim=160):
+def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[512,5,10,165], output_dim=165):
 
     input_height = 1
 
+    context = TT.tensor4(name='input')
     l_in = lasagne.layers.InputLayer(
-        shape=(None, num_frames, input_width, input_height)
+        shape=(None, num_frames, input_width, input_height),
+        input_var=context,
     )
 
     cat_h = []
@@ -114,7 +115,6 @@ def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[51
             indices=slice(cat_length, None),
             axis=2,
         )
-    print(lasagne.layers.get_output_shape(ord_slice))
 
     ord_h = T_T(
         ord_slice,
@@ -123,14 +123,11 @@ def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[51
         W=lasagne.init.Normal(.01),
         b=lasagne.init.Constant(.1)
     )
-    print(lasagne.layers.get_output_shape(ord_h))
-    ord_h_tt = lasagne.layers.get_output(ord_h)
 
     l_hidden1 = lasagne.layers.ConcatLayer(
         cat_h + [ord_h, ],
         axis=2,
     )
-    print(lasagne.layers.get_output_shape(l_hidden1))
 
     l_hidden2 = lasagne.layers.DenseLayer(
         l_hidden1,
@@ -151,19 +148,11 @@ def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[51
     sample = np.zeros((32,10,6,1), dtype=np.float32)
     sample[:,:,:4,:] = sample[:,:,:4,:].astype(np.uint32)
 
-    #print(lasagne.layers.get_output_shape(cat_h[0]))
-    #print(lasagne.layers.get_output_shape(ord_h))
+    context.tag.test_value = sample
     
-    lasagne.layers.get_output(cat_reshape, sample)
-    lasagne.layers.get_output(ord_slice, sample)
-    lasagne.layers.get_output(ord_h, sample)
-    lasagne.layers.get_output(l_hidden1, sample)
-    lasagne.layers.get_output(l_hidden2, sample)
-    lasagne.layers.get_output(l_out, sample)
-
     return l_out, locals()
 
-def action_major(actions):
+def major(actions):
     z = []
     for i in range(batch_size):
         s = {}
@@ -189,10 +178,14 @@ def action_major(actions):
 if __name__ == '__main__':
     from agent import hdf
     from itertools import islice
-    theano.config.optimizer = 'fast_compile'
-    theano.config.exception_verbosity = 'high'
-
-    l_out, subnet = build_wowah_network()
+    
+    #theano.config.optimizer = 'fast_compile'
+    #theano.config.exception_verbosity = 'high'
+    theano.config.optimizer = 'fast_run'
+    theano.config.exception_verbosity = 'low'
+    theano.config.compute_test_value = 'off'
+    
+    l_out, netcat = build_wowah_network()
 
     batch_size = 32
     num_frames = 10
@@ -251,12 +244,22 @@ if __name__ == '__main__':
     # actions_hat = TT.argmax(q_vals, axis=1)
     Q = theano.function(inputs=[states], outputs=q_vals)
 
-    for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=1000), 5)):
-        action_star = action_major(action)
+    accuracy = 0
+    num_batch = 3000
+    for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
+        if idx % 1000 == 0:
+            print(idx)
+        action_star = major(action)
         context_shared.set_value(context)
         rewards_shared.set_value(reward.reshape(batch_size, 1))
         actions_shared.set_value(action_star.reshape(batch_size, 1))
-        #q_hat = Q(context[:, :-skip_frames])
-        #print(q_hat.shape)
+
         loss = train()
-        print('loss={0}'.format(loss))
+        print('loss = {0}'.format(loss))
+        
+        #q_hat = Q(context[:, :-skip_frames])
+        #actions_hat = np.argmax(q_hat * candidates, axis=1)
+        #accuracy += (actions_hat == action_star).sum()
+    #print(accuracy / (batch_size * num_batch / 2))
+        
+        

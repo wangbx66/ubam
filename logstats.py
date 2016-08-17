@@ -184,8 +184,8 @@ def trajectory():
         with open(os.path.join('data/users', user)) as fp:
             for idx, line in enumerate(fp):
                 if idx == 0:
-                    previous_zone = line.strip().split(',')[7]
-                zone = line.strip().split(',')[7]
+                    previous_zone = int(line.strip().split(',')[7])
+                zone = int(line.strip().split(',')[7])
                 if not zone == previous_zone:
                     if (previous_zone, zone) in zonepair:
                         zonepair[(previous_zone, zone)] += 1
@@ -209,9 +209,10 @@ def trajectory():
         avg = sum(len(transaction[x]) for x in transaction)/len(transaction)
         print(threshold, len(transaction), len(Zones), avg)
         for zone in Zones:
-            if not str(Zones[zone]) in transaction:
+            if not Zones[zone] in transaction:
                 try:
                     print(zonepair[zone])
+                    print("should never print this lolol")
                 except:
                     print('never appeared')
                 print(Zones[zone], zone)
