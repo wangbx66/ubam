@@ -76,7 +76,7 @@ class DeepQLearner:
         else:
             next_q_vals = lasagne.layers.get_output(self.l_out,
                                                     next_states / input_scale)
-            next_q_vals = theano.gradienTT.disconnected_grad(next_q_vals)
+            next_q_vals = theano.gradient.disconnected_grad(next_q_vals)
 
         terminalsX = terminals.astype(theano.config.floatX)
         actionmask = TT.eq(TT.arange(num_actions).reshape((1, -1)),
@@ -189,13 +189,8 @@ class DeepQLearner:
         all_params = lasagne.layers.helper.get_all_param_values(self.l_out)
         lasagne.layers.helper.set_all_param_values(self.next_l_out, all_params)
 
-
-def main():
-    net = DeepQLearner(84, 84, 16, 4, .99, .00025, .95, .95, 10000,
-                       32, 'nature_cuda')
-
 def flowtest():
-    from agent import frames, batches
+    from agent import hdf
     UPDATE_RULE = 'deepmind_rmsprop'
     BATCH_ACCUMULATOR = 'sum'
     LEARNING_RATE = .00025

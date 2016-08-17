@@ -150,7 +150,7 @@ def hdf_dump(path='data/episodes.hdf', size=100000):
     s = frames().__next__()
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
-    num_zones = len(zones)
+    num_zones = max([int(x) for x in zones.keys()]) + 1
     shape = [x.shape for x in s[:-1]]
     with h5py.File(path, 'w') as fw:
         context = fw.create_dataset('context', (size, *shape[0]), 'f')
@@ -176,10 +176,8 @@ def hdf(path='data/episodes.hdf', batch_size=32, num_batch=1000):
     action = fp['action']
     candidates = fp['candidates']
     for idx in range(num_batch):
-        yield (context[idx*batch_size:(idx+1)*batch_size],  # keep intact for all other dimensions
-            reward[idx*batch_size:(idx+1)*batch_size],
-            action[idx*batch_size:(idx+1)*batch_size],
-            candidates[idx*batch_size:(idx+1)*batch_size],)
+        i = slice(idx * batch_size, (idx+1) * batch_size) # keep intact for all other dimensions
+        yield (context[i], reward[i], action[i], candidates[i], )
         
 class NeuralAgent(object):
 

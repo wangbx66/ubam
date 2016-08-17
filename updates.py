@@ -70,6 +70,6 @@ def deepmind_rmsprop(loss_or_grads, params, learning_rate,
 
         updates[param] = (param - learning_rate * 
                           (grad / 
-                           T.sqrt(acc_rms_new - acc_grad_new **2 + epsilon)))
+                           TT.sqrt(acc_rms_new - acc_grad_new **2 + epsilon)))
 
     return updates
