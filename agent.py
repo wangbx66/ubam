@@ -148,7 +148,7 @@ def batches(batch_size=32):
             idx = 0
             batch = []
 
-def hdf_dump(path='data/episodes.hdf', size=100000):
+def hdf_dump(path='data/episodes.hdf', size=10000):
     cd_size = 0
     s = frames().__next__()
     with open('data/zonesjson.txt') as fp:

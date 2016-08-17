@@ -23,7 +23,7 @@ def rmsprop(loss_or_grads, params, learning_rate, rho, epsilon):
         updates[acc_rms] = acc_rms_new
         updates[param] = (param - learning_rate * (grad / TT.sqrt(acc_rms_new - acc_grad_new **2 + epsilon)))
 
-    return updates
+    return updates, grads
 
 class T_T(lasagne.layers.Layer):
     '''
@@ -237,29 +237,33 @@ if __name__ == '__main__':
         actions: actions_shared,
     }
     params = lasagne.layers.helper.get_all_params(l_out)
-    updates = rmsprop(loss, params, lr, rho, rms_epsilon)
+    updates, grads = rmsprop(loss, params, lr, rho, rms_epsilon)
+    speed = TT.norm(grads, 2)
 
-    train = theano.function(inputs=[], outputs=[loss], updates=updates, givens=train_subs)
+    train = theano.function(inputs=[], outputs=[loss, speed], updates=updates, givens=train_subs)
     # we evaluate it using value programming
     # actions_hat = TT.argmax(q_vals, axis=1)
     Q = theano.function(inputs=[states], outputs=q_vals)
 
     accuracy = 0
     num_batch = 3000
-    for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
-        if idx % 1000 == 0:
-            print(idx)
-        action_star = major(action)
-        context_shared.set_value(context)
-        rewards_shared.set_value(reward.reshape(batch_size, 1))
-        actions_shared.set_value(action_star.reshape(batch_size, 1))
+    for epoch in range(200):
+        for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
+            if idx % 1000 == 0:
+                print(idx)
+            action_star = major(action)
+            context_shared.set_value(context)
+            rewards_shared.set_value(reward.reshape(batch_size, 1))
+            actions_shared.set_value(action_star.reshape(batch_size, 1))
 
-        loss = train()
-        print('loss = {0}'.format(loss))
-        
-        #q_hat = Q(context[:, :-skip_frames])
-        #actions_hat = np.argmax(q_hat * candidates, axis=1)
-        #accuracy += (actions_hat == action_star).sum()
-    #print(accuracy / (batch_size * num_batch / 2))
-        
-        
+            loss, speed = train()
+            print('loss = {0}, speed = {1}'.format(loss, speed))
+            # add gradient logging
+            
+            
+            #q_hat = Q(context[:, :-skip_frames])
+            #actions_hat = np.argmax(q_hat * candidates, axis=1)
+            #accuracy += (actions_hat == action_star).sum()
+        #print(accuracy / (batch_size * num_batch / 2))
+            
+            
