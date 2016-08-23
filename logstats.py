@@ -4,7 +4,7 @@ import os
 import math
 import json
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 Guilds = 512
 Races = {'Blood Elf':0, 'Orc':1, 'Tauren':2, 'Troll':3, 'Undead':4}
@@ -177,6 +177,7 @@ def userstats():
 
 def trajectory():
     zonepair = {}
+    lvlup = {}
     userlist = os.listdir('data/users')
     for iuser, user in enumerate(userlist):
         if iuser % 1000 == 0:
@@ -185,7 +186,11 @@ def trajectory():
             for idx, line in enumerate(fp):
                 if idx == 0:
                     previous_zone = int(line.strip().split(',')[7])
+                    previous_lvl = int(line.strip().split(',')[4])
+                    starting_lvl = previous_lvl
+                    cnt = 0
                 zone = int(line.strip().split(',')[7])
+                lvl = int(line.strip().split(',')[4])
                 if not zone == previous_zone:
                     if (previous_zone, zone) in zonepair:
                         zonepair[(previous_zone, zone)] += 1
@@ -196,7 +201,22 @@ def trajectory():
                     else:
                         zonepair[previous_zone] = 1
                     previous_zone = zone
-    for threshold in [10]:
+                if previous_lvl > starting_lvl or previous_lvl == 1:
+                    cnt += 1
+                    if lvl > previous_lvl:
+                        if previous_lvl in lvlup:
+                            lvlup[previous_lvl][0] += 1
+                            lvlup[previous_lvl][1] += cnt
+                            cnt = 0
+                        else:
+                            lvlup[previous_lvl] = [1, cnt]
+                if not lvl == previous_lvl:
+                    previous_lvl = lvl
+    lvlscore = {x: lvlup[x][1] / lvlup[x][0] for x in lvlup}
+    with open('data/scorejson.txt', 'w') as fw:
+        fw.write(json.dumps(lvlscore))
+
+    for threshold in range(1,20):
         pairs = [x for x in zonepair if type(x) is tuple and zonepair[x]/zonepair[x[0]] > 0.01 * threshold]
         transaction = {}
         for x in pairs:
@@ -204,7 +224,7 @@ def trajectory():
                 transaction[x[0]].append(x[1])
             else:
                 transaction[x[0]] = [x[1]]
-        with open('data/transactionjson.txt', 'w') as fw:
+        with open('data/transactionjson{0}.txt'.format(threshold), 'w') as fw:
             fw.write(json.dumps(transaction))
         avg = sum(len(transaction[x]) for x in transaction)/len(transaction)
         print(threshold, len(transaction), len(Zones), avg)

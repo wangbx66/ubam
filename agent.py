@@ -58,13 +58,16 @@ def frames_dep(num_frames=-1, require_expert=False):
         action_set = lvls[lvl_in]
         yield (cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set)
 
+def rewards():
+    
+
 def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.RandomState(123456)):
     num_cat_feature = 4
     num_ord_feature = 2
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
         lvls = json.loads(fp.readline())
-    with open('data/transactionjson.txt') as fp:
+    with open('data/transactionjson10.txt') as fp:
         transactions = json.loads(fp.readline())
     zones = {int(x):zones[x] for x in zones}
     lvls = {int(x):lvls[x] for x in lvls}
@@ -127,7 +130,6 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
             print(action_set_lvl, action_set_transaction)
             continue
 
-        
         frame += 1
         if frame == num_frames:
             yield (net_input, reward, action, action_set)
