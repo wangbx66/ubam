@@ -59,7 +59,36 @@ def frames_dep(num_frames=-1, require_expert=False):
         yield (cat_input, ord_input, cat_iutput_prime, ord_input_prime, reward, action, action_set)
 
 def rewards():
-    
+    # idx, user, tt, guild, lvl, Races[race], Categories[category], Zones[zone], seq
+    with open('data/usersjson_sketch.txt') as fp:
+        user_sketch = json.loads(fp.readline())
+    user_sketch = {int(x):user_sketch[x] for x in user_sketch}
+    with open('data/scorejson.txt') as fp:
+        lvlscore = json.loads(fp.readline())
+    lvlscore = {int(x):lvlscore[x] for x in lvlscore}
+    directory = 'data/users'
+    usersdir = os.listdir(directory)
+    totaluser = len(usersdir)
+    for i, user in enumerate(usersdir):
+        if i % 1000 == 0:
+            print("{0}/{1}".format(i, totaluser))
+        with open(os.path.join(directory, user)) as fp:
+            s = [[int(y) for y in x.strip().split(',')] for x in fp.readlines()]
+        lvl_start = s[0][4]
+        lvl_change = {s[idx][4]:idx if not s[idx+1][4] == s[idx][4] + 1 for idx in range(len(s)-1)}
+        lvl_min = min(lvl_change)
+        lvl_max = max(lvl_change)
+        if lvl_max - lvl_min < 5:
+            continue
+        lvl_gain = {lvl:lvlscore[lvl]/(lvl_change[lvl+1]-lvl_change[lvl]) for lvl in lvl_change if not lvl == lvl_max}
+        for idx in range(len(s)):
+            lvl = s[idx][4]
+            if lvl <= lvl_min:
+                continue
+            elif lvl >= lvl_max:
+                continue
+            reward_lvlup = lvl_gain[lvl]
+            s[idx].append(reward_lvlup)
 
 def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.RandomState(123456)):
     num_cat_feature = 4
