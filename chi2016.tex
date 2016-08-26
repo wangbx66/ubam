@@ -1,0 +1,56 @@
+\documentclass[a4paper]{article}
+
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+
+\title{Quantifying Pains and Pleasures in Game, A Reinforcement Learning Approach}
+\author{Bx. Wang}
+
+\begin{document}
+\maketitle
+
+\section{Related Work}
+
+\subsection{Player Motivation And Rewards}
+
+One reason that online games appeal so many players is that it provides the environments for different kinds of play styles. The same online game may have respective meanings for different players. In the environment players gain certain kind of satisfactions (rewards) they want by conducting their actions. It's natural to assume a user's behaviors are highly correlated with the user's demanding satisfaction. And for game designers, finding the demanding satisfactions of users could make it easier to serve the users with better experience. 
+
+Previous study categories the satisfactions into three major aspects, namely, achievement satisfactions, social satisfactions, and immersion satisfactions. It was then divided into ten subcategories, briefed in table. ~cite{table:satisfactions}. More detailes are introduced in ~\cite{} and ~\cite{}. The weights associated with these ten kinds of satisfactions basically chartered a user's profile, and it would be very meaningful the weights can be recovered in a purely data-driven process, based on the user's playing history.
+
+\section{Solution}
+
+\subsection{Dataset Description}
+
+To model the user behavior, we treat user as the agent who conduct an action every 10 minutes; during the 10-minute interval, the user decide the zone to stay in the next interval. If the user has been in multiple zones in a single interval, only the zone with longest stay duration was recorded. The actions are represented by zone IDs, ranging from 0 to 164, corresponding to 165 zones existing during Jan 2006 to Jan 2009 in WoW. When counting the index of interval, we ignore those minutes that the user's offline.
+
+We use WoWAH~\cite{}, a dataset collected from realm \textit{TW-Light's Hope} during 1st Jan 2006 and 10th Jan 2009, containing 70,055 users after a simple filtering. Each user has spent 440.4 time intervals online on average. The dataset contains many different kinds of users: both novice and expert, guild members and isolated players, low-level and high-level players etc., with their respect class, and race in game. The detailed attributes are listed in Table~ref{tbl:attributes}.
+
+During the gameplay the user is able to observe its current game states, including all the attributes recorded in the dataset. We construct the observation vector of the agent using the sequence of attributes extracted from its game plays in the most recent session (since the lastest log on). Instead of using the raw, concatenated vector of those attributes, we employ a preprocess to reduce the redundency, and make those decisive information more explicitly shown to the agent.
+
+To model the user's behavior in a reinforcement learning perspective, we define the reward function that the agent tries to optimize during the gameplay. The reward is separated into several parts
+
+
+
+
+$$Q(s,a)=\gamma r_{t} + \mathbf{E}_{s_{t+1}}[\max_{a^\prime}Q(s_{t+1}, a^\prime)]$$
+
+$$L=(Q(s,a)-\gamma r_{t} + \mathbf{E}_{s_{t+1}}[\max_{a^\prime}Q(s_{t+1}, a^\prime)])^2$$
+
+$$\theta -= \alpha\frac{\partial L}{\partial \theta}$$
+
+$$Q(s,a)=\sum_{t}\mathbf{E}[\gamma^{t}r_{t} | s_{0}=s, a_{0}=a]$$
+
+$$ r(s)=\theta^T \phi(s)$$
+
+$$ \max_{|\theta|_1=1} \quad C$$
+
+$$ Q(s,a*) - max_{a\in A-a*}Q(s,a) > C \quad\forall s,a,a*$$
+
+
+
+
+\end{document}
