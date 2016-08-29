@@ -63,6 +63,10 @@ def rewards():
     with open('data/usersjson_sketch.txt') as fp:
         user_sketch = json.loads(fp.readline())
     user_sketch = {int(x):user_sketch[x] for x in user_sketch}
+    # continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max
+    with open('data/zones.txt') as fp:
+        zones = json.loads(fp.readline())
+    zones = {int(x):zones[x] for x in zones}
     with open('data/scorejson.txt') as fp:
         lvlscore = json.loads(fp.readline())
     lvlscore = {int(x):lvlscore[x] for x in lvlscore}
@@ -81,14 +85,66 @@ def rewards():
         if lvl_max - lvl_min < 5:
             continue
         lvl_gain = {lvl:lvlscore[lvl]/(lvl_change[lvl+1]-lvl_change[lvl]) for lvl in lvl_change if not lvl == lvl_max}
+        previous_guild = 0
+        guild_age = 0
+        previous time = 0
+        session_length = 0
+        regular_length = 0
+        daily_time = 0
         for idx in range(len(s)):
             lvl = s[idx][4]
             if lvl <= lvl_min:
                 continue
             elif lvl >= lvl_max:
                 continue
-            reward_lvlup = lvl_gain[lvl]
-            s[idx].append(reward_lvlup)
+            reward_advancement = lvl_gain[lvl]
+            s[idx].append(reward_advancement)
+            zone = s[idx][7]
+            zonetype = zones[zone][2]
+            zonelord = zones[zone][3]
+            assert isinstance(zonetype, int)
+            if zonetype == 0: #arena
+                reward_competition = 1
+            else if zonetype == 6: #battleground
+                reward_competition = 1.2
+            else:
+                reward_competition = 0
+            s[idx].append(reward_competition)
+            current_guild = s[idx][3]
+            if previous_guide == current_guild:
+                guild_age += 1
+            else:
+                guild_age = 0
+            in_guild = not current_guild == 0
+            previous_guild = current_guild
+            reward_relationship = in_guild + guild_age / 150
+            s[idx].append(reward_relationship)
+            if zonetype == 6: #battleground
+                reward_teamwork = 0.5
+            elif zonetype == 3: #dungeon
+                reward_teamwork = 0.7
+            elif zonetype == 2 and zonelord == 3: #alliance zone
+                reward_teamwork = 0.9
+            elif zonetype == 0: #arena
+                reward_teamwork = 1.1
+            # we temproraly ignore raid, due to some tricky points to get raid label
+            else:
+                reward_teamwork = 0
+            s[idx].append(reward_teamwork)
+            current_time = s[idx][2]
+            if current_time <= previous_time + 1:
+                session_length += 1
+            else:
+                session_length = 1
+            if current_time <= daily_time + 288 and current_time >= daily_time + 132 or daily_time == 0:
+                regular_length += 1
+                daily_time = current_time
+            elif current_time > daily_time + 288:
+                regular_length = 1
+                daily_time = current_time
+            previous_time = current_time
+            reward_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
+            s[idx].append(reward_escapism)
 
 def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.RandomState(123456)):
     num_cat_feature = 4
