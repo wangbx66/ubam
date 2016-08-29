@@ -78,12 +78,13 @@ def keymatch():
     return zones, cnt, mintt, maxguild
 
 def cat_user():
+    from shutil import rmtree
     ulvl = {}
     idx = 99
     users = {}
     fp = open('data/WoWAH_Node_Player_Fixed_Dynamic')
-    if not os.path.exists('data/users'):
-        os.makedirs('data/users')
+    rmtree('data/users')
+    os.makedirs('data/users')
     for line in fp:
         if line.startswith('#') or line.startswith('RowID'):
             continue
@@ -241,6 +242,6 @@ def trajectory():
 if __name__ == '__main__':
     #zones, cnt, mintt, maxguild = keymatch()
     #cat_user()
-    s = trajectory()
+    #s = trajectory()
     #lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
     pass

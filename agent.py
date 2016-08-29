@@ -1,4 +1,5 @@
 import os
+import math
 import pickle
 import json
 import time
@@ -60,17 +61,27 @@ def frames_dep(num_frames=-1, require_expert=False):
 
 def rewards():
     # idx, user, tt, guild, lvl, Races[race], Categories[category], Zones[zone], seq
+    from zoneinfo import Zonetypes
+    zonetype_total = len(Zonetypes)
     with open('data/usersjson_sketch.txt') as fp:
         user_sketch = json.loads(fp.readline())
     user_sketch = {int(x):user_sketch[x] for x in user_sketch}
     # continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max
-    with open('data/zones.txt') as fp:
+    with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
     zones = {int(x):zones[x] for x in zones}
     with open('data/scorejson.txt') as fp:
-        lvlscore = json.loads(fp.readline())
-    lvlscore = {int(x):lvlscore[x] for x in lvlscore}
+        lvlscore_dct = json.loads(fp.readline())
+    lvlscore_dct = {int(x):lvlscore_dct[x] for x in lvlscore_dct}
+    def lvlscore(lvl):
+        if lvl in lvlscore_dct:
+            return lvlscore_dct[lvl]
+        else:
+            return 0
     directory = 'data/users'
+    dw = 'data/trajs'
+    if not os.path.exists(dw):
+        os.mkdir(dw)
     usersdir = os.listdir(directory)
     totaluser = len(usersdir)
     for i, user in enumerate(usersdir):
@@ -78,46 +89,70 @@ def rewards():
             print("{0}/{1}".format(i, totaluser))
         with open(os.path.join(directory, user)) as fp:
             s = [[int(y) for y in x.strip().split(',')] for x in fp.readlines()]
+        
         lvl_start = s[0][4]
-        lvl_change = {s[idx][4]:idx if not s[idx+1][4] == s[idx][4] + 1 for idx in range(len(s)-1)}
-        lvl_min = min(lvl_change)
-        lvl_max = max(lvl_change)
-        if lvl_max - lvl_min < 5:
+        lvl_change = {s[idx][4]:idx for idx in range(len(s)-1) if not s[idx+1][4] == s[idx][4]}
+        if not lvl_change:
             continue
-        lvl_gain = {lvl:lvlscore[lvl]/(lvl_change[lvl+1]-lvl_change[lvl]) for lvl in lvl_change if not lvl == lvl_max}
+        lvl_range = {lvl for lvl in lvl_change if lvl - 1 in lvl_change}
+        if len(lvl_range) < 5:
+            continue
+        lvl_gain = {lvl:lvlscore(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
+        fw = open(os.path.join(dw, user), 'w')
+        previous_zone = 'x'
+        zone_session_length = 0
+        recent_zones = []
         previous_guild = 0
         guild_age = 0
-        previous time = 0
+        previous_time = 0
         session_length = 0
         regular_length = 0
         daily_time = 0
         for idx in range(len(s)):
             lvl = s[idx][4]
-            if lvl <= lvl_min:
+            if not lvl in lvl_range:
                 continue
-            elif lvl >= lvl_max:
-                continue
+
+            zone = s[idx][7]
+            zonetype = zones[zone][2]
+            zonelord = zones[zone][3]
+            if zonetype == 2 and zonelord == 3: #alliance zone
+                zonetype = zonetype_total
+            feature_zonetype = zonetype
+            s[idx].append(feature_zonetype)
+            recent_zones.append(zone)
+            if len(recent_zones) > 60: #10 hrs
+                del(recent_zones[0])
+            feature_versatile_zones = len(set(recent_zones))
+            s[idx].append(feature_versatile_zones)
+            if zone == previous_zone:
+                zone_session_length += 1
+            else:
+                zone_session_length = 1
+                previous_zone = zone
+            feature_zone_session_length = zone_session_length
+            s[idx].append(feature_zone_session_length)
+
             reward_advancement = lvl_gain[lvl]
             s[idx].append(reward_advancement)
             zone = s[idx][7]
             zonetype = zones[zone][2]
             zonelord = zones[zone][3]
-            assert isinstance(zonetype, int)
             if zonetype == 0: #arena
-                reward_competition = 1
-            else if zonetype == 6: #battleground
-                reward_competition = 1.2
+                reward_competition = 0.9
+            elif zonetype == 6: #battleground
+                reward_competition = 1.1
             else:
                 reward_competition = 0
             s[idx].append(reward_competition)
             current_guild = s[idx][3]
-            if previous_guide == current_guild:
+            if previous_guild == current_guild and not current_guild == 0:
                 guild_age += 1
             else:
                 guild_age = 0
+                previous_guild = current_guild
             in_guild = not current_guild == 0
-            previous_guild = current_guild
-            reward_relationship = in_guild + guild_age / 150
+            reward_relationship = in_guild * 0.5 + math.sqrt(guild_age) / 150
             s[idx].append(reward_relationship)
             if zonetype == 6: #battleground
                 reward_teamwork = 0.5
@@ -127,7 +162,7 @@ def rewards():
                 reward_teamwork = 0.9
             elif zonetype == 0: #arena
                 reward_teamwork = 1.1
-            # we temproraly ignore raid, due to some tricky points to get raid label
+            # we temproraly ignore raid, due to some tricky connections to get raid label
             else:
                 reward_teamwork = 0
             s[idx].append(reward_teamwork)
@@ -145,6 +180,8 @@ def rewards():
             previous_time = current_time
             reward_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
             s[idx].append(reward_escapism)
+            fw.write(','.join([str(y) for y in s[idx]]) + '\n')
+        fw.close()
 
 def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.RandomState(123456)):
     num_cat_feature = 4
@@ -537,7 +574,9 @@ class NeuralAgent(object):
 
 
 if __name__ == "__main__":
-    hdf_dump(size=100000)
+    pass
+    #rewards()
+    #hdf_dump(size=100000)
     #for x in hdf(num_batch=100):
     #    print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
     #g = frames()
@@ -553,3 +592,6 @@ if __name__ == "__main__":
     #    cnt2 += 1
     #    print('{0}/{1}'.format(cnt1, cnt2))
         #print(x[0].shape, x[1], x[2], x[3])
+
+
+
