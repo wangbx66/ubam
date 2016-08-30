@@ -43,6 +43,10 @@ Previous study categories the satisfactions into three major aspects, namely, ac
     \label{tbe:satisfactions}
 \end{tabular}
 
+\subsection{Reinforcement Learning and Inverse RL}
+
+
+
 \section{Solution}
 
 \subsection{Dataset Description}
@@ -96,7 +100,7 @@ satisfied for all $(s,a)$ pairs recorded in the user's trajectory. Consider the 
 \subsection{Action-Value Function Approximation}
 
 To solve \ref{eqn:lp} we have to be able to evaluate the $Q^*(s,a)$ value for every $(s,a)$ pair. Let
-$$Q^i(s,a)=\mathbf{E}[\sum_{t^\prime\geq t}\gamma^{t^\prime-t}r^i_{t^\prime} | s_{t}=s, a_{t}=a | \pi^{i,\ast}]$$
+$$Q^i(s,a)=\mathbf{E}[\sum_{t^\prime\geq t}\gamma^{t^\prime-t}r^i_{t^\prime} | s_{t}=s, a_{t}=a | \pi^{i,\ast}] \label{eqn:qi}$$
 be the action-value function, when the user only takes the $r^i$ into account and ignores all four other kinds of satisfactions. By definition we have $Q^*(s,a)=\phi^TQ(s,a)$, and it becomes suffice to the following linear programming, if $Q^i(s,a)$ can be evaluated for all $i$ and $(s,a)$ pairs in the trajectory.
 
 \begin{equation*}
@@ -111,22 +115,29 @@ be the action-value function, when the user only takes the $r^i$ into account an
 \end{aligned}
 \end{equation*}
 
-It suffice to solve $Q^i(s,a)$. As the number of feasible states $s$ could be arbitrary large, for an user in WoW, it's impossible to enumerate over the state space. Instead, we use deep-Q networks (DQN) \cite{} to approximate the $Q^i$ functions. The action-value function, by its definition, should satisfy the Bellman equation \cite{}, i.e. if the user takes action
-$a$ and the state turns into $s_{t+1}$ from $s_t$,
+It suffices to solve $Q^i(s,a)$. As the number of feasible states $s$ could be arbitrary large, for an user in WoW, it's impossible to enumerate over the state space. Instead, we use deep-Q networks (DQN) \cite{} to approximate the $Q^i$ functions. The neural networks takes $s$ as input, and output the $Q$ value for every action $a$. We use the same network architecture for $i=1,\cdot,5$, illustrated in Fig. \ref{fig:arch}. The categorical elements in $s$ are firstly processed by an embedding layer, while the elements with real values are fed into an fully connected (FC) layer with rectifier non-linearity. The output of embedding layer and FC layer are then concatenated and fed into another FC layer with rectifier nonlinearity. A final FC layer is applied to compute the $Q$ value for each action $a^\prime$.
 
-$$Q^i(s,a)=r_{t} + \gamma \mathbf{E}_{a^\prime}[\max_{a^\prime}Q^i(s_{t+1}, a^\prime)].$$
+Denote the trainable parameters in the Q-network as $\theta^i$, we optimize over $\theta^i$ in order to approximate Eq. \eqref{eqn:qi}. The key observation of Q-learning is that, the action-value function, by its definition, should satisfy the Bellman equation \cite{}. That is, if the user takes action $a$ and the state turns into $s_{t+1}$ from $s_t$, we have
+$$Q^i(s_t,a_t)=r_{t} + \gamma \max_{a^\prime}Q^i(s_{t+1}, a^\prime). \label{eqn:bellman}$$
+Q-learning tries to find the action-value function that satisfies Eq. \eqref{eqn:bellman}, by minimizing the squared difference $L$ between both sides of the equation.
+$$L^i=\mathbb{E}_{s_t, a_t, r_t, s_{t+1}} \frac{1}{2}(Q^i(s,a)- r_{t} + \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime))^2.$$
+The function $Q^i$, and thus $L$, are differentiable with respect to $\theta^i$. Hence $\theta^i$ can be updated with stochastic gradient descent, by
+\begin{eqnarray*}
+\theta^i & \leftarrow & \theta^i - \alpha\frac{\partial L}{\partial \theta^i} \\
+\end{eqnarray*}
+We take advantage of the algorithm introduced in \cite{}, that the target network only getting updated periodically to reduce its correlation with the Q-network, which is important for the stability of DQN. The derivative of $L$ with respective $\theta^i$ becomes
+$$\frac{\partial L}{\partial \theta^i} = \mathbb{E}_{s_t, a_t, r_t, s_{t+1}} (Q^i(s,a)- r_{t} + \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime | \theta^{i -}))\cdot \frac{\partial{Q^i(s,a)}}{\partial{\theta^i}},$$
+where $\theta^{i-}$ is the network parameter who is assigned current $\theta^i$ value periodically during training.
 
-$$L=(Q(s,a)-\gamma r_{t} + \mathbf{E}_{s_{t+1}}[\max_{a^\prime}Q(s_{t+1}, a^\prime)])^2$$
+\subsection{Agreement between $Q^1$ and Expert Behaviors}
 
-$$\theta -= \alpha\frac{\partial L}{\partial \theta}$$
+We conduct a quantitative evaluation of our learned $Q^1$ network. Consider collecting experience and getting level up is one of the major objective for players, we evaluate if the actions predicted by $Q^1$ agree with the actual play conducted by those experts (who level up quickly). At state $s$, the predicted action is the one with the largest action-value $Q^1(s,a)$, i.e.,
+$$a = \text{argmax}_{a^\prime}Q^1(s,a^\prime).$$
+For the $(s,a)$ pairs extracted from the top 200 (in leveling up speed) players' trajectories, the prediction accuracy is 0.36 with the total number of feasible actions $|\cup_s\mathcal{A}(s)|=156$, corresponding to 156 different zones in WoW existed during Jan 2006 - Jan 2009.
 
+[take an example here/conclude Q quality]
 
-
-$$ r(s)=\theta^T \phi(s)$$
-
-$$ \max_{|\theta|_1=1} \quad C$$
-
-$$ Q(s,a*) - max_{a\in A-a*}Q(s,a) > C \quad\forall s,a,a*$$
+[compare with supervised learning/linear Q]
 
 
 
