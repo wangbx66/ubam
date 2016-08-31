@@ -43,9 +43,17 @@ Previous study categories the satisfactions into three major aspects, namely, ac
     \label{tbe:satisfactions}
 \end{tabular}
 
-\subsection{Reinforcement Learning and Inverse RL}
+\subsection{Player Profile Study}
 
 
+
+\subsection{Reinforcement Learning and Apprenticeship learning}
+
+Reinforcement learning (RL), especially deep reinforcement learning (DRL), is an [] domain  inspired by behaviorist psychology. In RL, the agent performs in an online environment (in which the agent conducts a sequence of actions and get a reward for each of its actions) and evolves itself from the pains and pleasures it received from its previous actions. In the environment the agent has to deal with the tradeoff between exploration and exploitation, which presents in many real life situations. For example, to level up quickly in a game in a long-term perspective, the player has to conduct some preparation work which does not benefit its leveling up in the near future.
+
+RL is able formulate many online problems to model users' behavior. For example, the trained agent conducts superior play compared with professional human in the game of Go \cite{}, Atari 2600 \cite{}, and Poker \cite{}. Also used to model users' clickings and browsings for online shopping websites, and how users behaves in many optimal control problems etc. (Note: I want an example more related to wowah). It's worth to note that recent advancement of DRL makes it possible to handle complex environment with high-dimension observation and state spaces, making it possible to model a wide variety of real-life problems.
+
+In most cases of user behavior analysis and modeling, the reward scheme of the environment is not explicitly given. For example, the user experience of a software or a online game is the combination of different kinds of satisfication. Instead, apprenticeship learning \cite{}, also known as apprenticeship via inverse reinforcement learning (AIRP), tries to recover the underlying reward function using the observed behavior of the agent, e.g. the trajectories of players in a online game. Applying AIRP on users' behavior log could help the developers understand the intention of the user, the divergence between different group of users, and the dynamic of user profiles. 
 
 \section{Solution}
 
