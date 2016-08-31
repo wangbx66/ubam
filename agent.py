@@ -64,8 +64,9 @@ def rewards():
     from zoneinfo import Zonetypes
     zonetype_total = len(Zonetypes)
     with open('data/usersjson_sketch.txt') as fp:
-        user_sketch = json.loads(fp.readline())
-    user_sketch = {int(x):user_sketch[x] for x in user_sketch}
+        users_sketch = json.loads(fp.readline())
+    users_sketch = {int(x):users_sketch[x] for x in users_sketch}
+    users = {x:0 for x in users_sketch}
     # continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
@@ -84,12 +85,12 @@ def rewards():
         os.mkdir(dw)
     usersdir = os.listdir(directory)
     totaluser = len(usersdir)
-    for i, user in enumerate(usersdir):
+    for i, userfile in enumerate(usersdir):
         if i % 1000 == 0:
             print("{0}/{1}".format(i, totaluser))
-        with open(os.path.join(directory, user)) as fp:
+        with open(os.path.join(directory, userfile)) as fp:
             s = [[int(y) for y in x.strip().split(',')] for x in fp.readlines()]
-        
+        user = int(userfile.split('.')[0])
         lvl_start = s[0][4]
         lvl_change = {s[idx][4]:idx for idx in range(len(s)-1) if not s[idx+1][4] == s[idx][4]}
         if not lvl_change:
@@ -98,7 +99,7 @@ def rewards():
         if len(lvl_range) < 5:
             continue
         lvl_gain = {lvl:lvlscore(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
-        fw = open(os.path.join(dw, user), 'w')
+        fw = open(os.path.join(dw, userfile), 'w')
         previous_zone = 'x'
         zone_session_length = 0
         recent_zones = []
@@ -112,7 +113,7 @@ def rewards():
             lvl = s[idx][4]
             if not lvl in lvl_range:
                 continue
-
+            users[user] += 1
             zone = s[idx][7]
             zonetype = zones[zone][2]
             zonelord = zones[zone][3]
@@ -182,10 +183,12 @@ def rewards():
             s[idx].append(reward_escapism)
             fw.write(','.join([str(y) for y in s[idx]]) + '\n')
         fw.close()
+    with open('data/trajsjson.txt', 'w') as fw:
+        fw.write(json.dumps({x:users[x] for x in users if not users[x] == 0}))
 
 def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.RandomState(123456)):
-    num_cat_feature = 4
-    num_ord_feature = 2
+    num_cat_feature = 5
+    num_ord_feature = 3
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
         lvls = json.loads(fp.readline())
@@ -195,9 +198,9 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
     lvls = {int(x):lvls[x] for x in lvls}
     transactions = {int(x):transactions[x] for x in transactions}
     if require_expert:
-        fp = open('data/usersjson.txt')
+        fp = open('data/trajsjson.txt')
     else:
-        fp = open('data/usersjson_sketch.txt')
+        fp = open('data/trajsjson.txt')
     users = json.loads(fp.readline())
     users = {int(x):users[x] for x in users if users[x] > 2 * num_frames}
     k = np.array(list(users.keys()), dtype=np.uint64)
@@ -214,10 +217,10 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
     while True:
         user = rng.choice(k, p=p)
         start = rng.randint(low=0, high=users[user] - num_frames - skip_frames)
-        with open(os.path.join('data/users', '{0}.txt'.format(user))) as fp:
+        with open(os.path.join('data/trajs', '{0}.txt'.format(user))) as fp:
             for idx, line in enumerate(fp):
                 if idx >= start and idx < start + num_frames + skip_frames:
-                    idx_logstats, user, tt, guild, lvl, race, category, zone, seq = line.strip().split(',')
+                    idx_logstats, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5 = line.strip().split(',')
                     #print(idx, start, start + num_frames + skip_frames - 1)
                     # possible additional features
                     # the time elapse during current zone
@@ -226,13 +229,16 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
                     lvl = int(lvl)
                     norm_lvl = lvl / 70
                     norm_idx = min(idx / 1500, 1.1)
-                    net_input[idx - start, :, 0] = np.array([guild, race, category, zone, norm_lvl, norm_idx])
+                    norm_num_zones = min(int(num_zones) / 12, 1.1)
+                    norm_zone_stay = min(int(zone_stay) / 75, 1.1)
+                    net_input[idx - start, :, 0] = np.array([int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay])
                     if idx == start + num_frames - 1:
                         lvl_in = lvl
                     if idx == start + num_frames + skip_frames - 1:
                         lvl_out = lvl
-        reward = np.float32(lvl_out ** power - lvl_in ** power)
+        #reward = np.float32(lvl_out ** power - lvl_in ** power)
         #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
+        reward = np.array([float(x) for x in [r1, r2, r3, r4, r5]])
         action = net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)
         action_set_lvl = lvls[lvl_in]
         last_zone = net_input[-(skip_frames + 1), -3, 0].astype(np.uint8)
@@ -576,7 +582,7 @@ class NeuralAgent(object):
 if __name__ == "__main__":
     pass
     #rewards()
-    #hdf_dump(size=100000)
+    hdf_dump(size=100000)
     #for x in hdf(num_batch=100):
     #    print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
     #g = frames()

@@ -71,7 +71,9 @@ class QwQ(lasagne.layers.Layer):
     def get_output_for(self, input_tensor, **kwargs):
         return input_tensor.astype(self.dtype)
 
-def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[512,5,10,165], output_dim=165):
+def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[512,5,10,165], output_dim=165):
+
+    # int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay
 
     input_height = 1
 
@@ -97,7 +99,7 @@ def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[51
         cat_embed = lasagne.layers.EmbeddingLayer(
             cat_int,
             input_size=cat_size[idx],
-            output_size=25,
+            output_size=10,
             W=lasagne.init.Normal(.01),
         )
 
@@ -118,7 +120,7 @@ def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[51
 
     ord_h = T_T(
         ord_slice,
-        num_units=50,
+        num_units=30,
         nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.Normal(.01),
         b=lasagne.init.Constant(.1)
@@ -131,7 +133,7 @@ def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[51
 
     l_hidden2 = lasagne.layers.DenseLayer(
         l_hidden1,
-        num_units=500,
+        num_units=120,
         nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.Normal(.01),
         b=lasagne.init.Constant(.1)
@@ -145,8 +147,8 @@ def build_wowah_network(num_frames=10, input_width=6, cat_length=4, cat_size=[51
         b=lasagne.init.Constant(.1)
     )
     
-    sample = np.zeros((32,10,6,1), dtype=np.float32)
-    sample[:,:,:4,:] = sample[:,:,:4,:].astype(np.uint32)
+    sample = np.zeros((32,num_frames,input_width,input_height), dtype=np.float32)
+    sample[:,:,:cat_length,:] = sample[:,:,:cat_length,:].astype(np.uint32)
 
     context.tag.test_value = sample
     
@@ -190,7 +192,7 @@ if __name__ == '__main__':
     batch_size = 32
     num_frames = 10
     skip_frames = 4
-    input_width = 6
+    input_width = 8
     input_height = 1
     discount = 0.99
     clip_delta = 1.0
