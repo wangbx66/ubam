@@ -1,11 +1,34 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
+import logging
+import inspect
+import os
+import pickle
 
 import lasagne
 import numpy as np
 import theano
 import theano.tensor as TT
+
+def logging_config(name=None, file_level=logging.DEBUG, console_level=logging.DEBUG):
+    if name is None:
+        name = inspect.stack()[1][1].split('.')[0]
+    folder = os.path.join(os.getcwd(), name)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    logpath = os.path.join(folder, name + ".log")
+    print("All Logs will be saved to", logpath)
+    logging.root.setLevel(file_level)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    logfile = logging.FileHandler(logpath)
+    logfile.setLevel(file_level)
+    logfile.setFormatter(formatter)
+    logging.root.addHandler(logfile)
+    logconsole = logging.StreamHandler()
+    logconsole.setLevel(console_level)
+    logconsole.setFormatter(formatter)
+    logging.root.addHandler(logconsole)
 
 def rmsprop(loss_or_grads, params, learning_rate, rho, epsilon):
     grads = lasagne.updates.get_or_compute_grads(loss_or_grads, params)
@@ -71,7 +94,7 @@ class QwQ(lasagne.layers.Layer):
     def get_output_for(self, input_tensor, **kwargs):
         return input_tensor.astype(self.dtype)
 
-def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[512,5,10,165], output_dim=165):
+def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[512,5,10,165,9], output_dim=165):
 
     # int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay
 
@@ -152,7 +175,7 @@ def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[51
 
     context.tag.test_value = sample
     
-    return l_out, locals()
+    return l_out#, locals()
 
 def major(actions):
     z = []
@@ -181,13 +204,15 @@ if __name__ == '__main__':
     from agent import hdf
     from itertools import islice
     
-    #theano.config.optimizer = 'fast_compile'
-    #theano.config.exception_verbosity = 'high'
+    logging_config()
+    
     theano.config.optimizer = 'fast_run'
     theano.config.exception_verbosity = 'low'
     theano.config.compute_test_value = 'off'
+    #theano.config.optimizer = 'fast_compile'
+    #theano.config.exception_verbosity = 'high'
     
-    l_out, netcat = build_wowah_network()
+    l_out = build_wowah_network()
 
     batch_size = 32
     num_frames = 10
@@ -196,10 +221,11 @@ if __name__ == '__main__':
     input_height = 1
     discount = 0.99
     clip_delta = 1.0
-    lr = 0.00025
+    lr = 0.000025
     rho = 0.95
     rms_epsilon = 0.01
     num_actions = 165
+    reward_idx = 0
 
     states = TT.tensor4('states')
     next_states = TT.tensor4('next_states')
@@ -240,32 +266,38 @@ if __name__ == '__main__':
     }
     params = lasagne.layers.helper.get_all_params(l_out)
     updates, grads = rmsprop(loss, params, lr, rho, rms_epsilon)
-    speed = TT.norm(grads, 2)
+    speed = [grad.norm(L=2) / grad.shape.prod() for grad in grads]
 
-    train = theano.function(inputs=[], outputs=[loss, speed], updates=updates, givens=train_subs)
+    train = theano.function(inputs=[], outputs=[loss, *speed], updates=updates, givens=train_subs)
     # we evaluate it using value programming
     # actions_hat = TT.argmax(q_vals, axis=1)
     Q = theano.function(inputs=[states], outputs=q_vals)
 
-    accuracy = 0
+
     num_batch = 3000
-    for epoch in range(200):
+    test_batch = 100
+    for epoch in range(20000):
+    
         for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
             if idx % 1000 == 0:
                 print(idx)
             action_star = major(action)
             context_shared.set_value(context)
-            rewards_shared.set_value(reward.reshape(batch_size, 1))
+            rewards_shared.set_value(reward[:,reward_idx].reshape(batch_size, 1))
             actions_shared.set_value(action_star.reshape(batch_size, 1))
 
-            loss, speed = train()
-            print('loss = {0}, speed = {1}'.format(loss, speed))
-            # add gradient logging
-            
-            
-            #q_hat = Q(context[:, :-skip_frames])
-            #actions_hat = np.argmax(q_hat * candidates, axis=1)
-            #accuracy += (actions_hat == action_star).sum()
-        #print(accuracy / (batch_size * num_batch / 2))
-            
+            train_results = train()
+            loss = train_results[0]
+            speed = train_results[1:]
+            speed = [float(x) for x in speed]
+            logging.info('loss = {0}, speed = {1}'.format(loss, speed))
+            accuracy = 0
+            if idx >= num_batch - test_batch: 
+                q_hat = Q(context[:, :-skip_frames])
+                actions_hat = np.argmax(q_hat * candidates, axis=1)
+                accuracy += (actions_hat == action_star).sum()
+        logging.info('accuracy = {0}'.format(accuracy / (batch_size * test_batch)))
+        network = lasagne.layers.get_all_param_values(l_out)
+        netfile = open('data/Q{0}.pkl'.format(reward_idx), 'wb')
+        pickle.dump(network, netfile)
             
