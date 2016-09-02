@@ -25,6 +25,7 @@ One reason that online games appeal so many players is that it provides the envi
 
 Previous study categories the satisfactions into three major aspects, namely, achievement satisfactions, social satisfactions, and immersion satisfactions. It was then divided into ten subcategories, briefed in table. ~cite{tbl:satisfactions}. More detailes are introduced in ~\cite{} and ~\cite{}. The weights associated with these ten kinds of satisfactions basically chartered a user's profile, and it would be very meaningful the weights can be recovered in a purely data-driven process, based on the user's playing history.
 
+
 \begin{tabular}{l|l|p{9cm}}
     \toprule
     Component  &Sub-component & Description \\
@@ -69,11 +70,11 @@ To model the user's behavior in a reinforcement learning perspective, we define 
 
 
 
-\begin{tabular}{l|l|p{9cm}}
+\begin{tabular}{l|l|p{7cm}}
     \toprule
-    Reward  &~Satisfaction~ & Definition \\
+    Satisfaction & Category & Definition \\
     \midrule
-    $r^1$ & Advancement & The speed the user collecting experience in game \\
+    $r^1$ & Advancement & The speed the user collecting experience and leveling up in game. It's the most common reward a user could receive \\
     $r^2$ & Competition & The satisfaction the user get by joining battleground or arena and competing with human opponents \\
     $r^3$ & Relationship & The long-term relationship with the user's guild, which is quantified by the time elapse since the user join its guild \\
     $r^4$ & Teamwork & The satisfaction the user get by playing in a zone which is featured by teamwork, e.g. Battleground, Arena, Dungeon, Raid, or a zone controlled by The Alliance. \\
@@ -84,23 +85,28 @@ To model the user's behavior in a reinforcement learning perspective, we define 
 
 \subsection{Reward Weight Recovery}
 
-We apply inverse reinforcement learning, in order to recover the underlying reward mechanism of the players, using user's trajectory. Assume the total reward a user receives is the convex combination of the five rewards \ref{tbl:rewards}. Let $f_t=(r_t^1,r_t^2,r_t^3,r_t^4,r_t^5)$, we have the reward the user receives at time $t$ $$r_t=\phi^Tf_t,$$ 
-where $\phi$ is the combination weight with $||\phi||_1=1$. Assume at each time step $t$, the user tries to take an action $a_t$ according to current game states so as to maximize the best expected cumulative discounted reward (known as the action-value function) $Q^\ast(s_t, a_t)$, where
+We apply apprenticeship via inverse reinforcement learning, in order to recover the underlying reward mechanism of the players, using the trajectory $\tau$ of a user (or a group of users). Assume the total reward a user receives is the convex combination of the five rewards listed in Table. \ref{tbl:rewards}. Let $f_t=(r_t^1,r_t^2,r_t^3,r_t^4,r_t^5)$ be the rewards the user received at time $t$, we have the total reward the user receives at time $t$ $$r_t=\phi^Tf_t,$$ 
+where $\phi$ is the combination weight with $||\phi||_1=1, \; \phi \geq 0$. Assume at each time step, the user tries to take an action $a$ according to the current game state so as to maximize the best expected cumulative discounted (with discount $\gamma$ over time) reward (known as the action-value function) $Q^\ast(s, a)$, where
 $$Q^\ast(s,a)=\mathbf{E}[R_t | s_{t}=s, a_{t}=a | \pi^\ast]$$
 and
 $$R_t=\sum_{t^\prime\geq t}\gamma^{t^\prime-t}r_{t^\prime}=\sum_{t^\prime\geq t}\gamma^{t^\prime-t}\phi^Tf_{t^\prime}.$$
-The term $\pi^\ast$ indicates optimal policy, featured by an distribution $\mathbb{P}(a|s)$ over the action space $\mathcal{A}(s)$. In this setting, the weight $\phi$ must satisfy that the action the user has taken must induce a larger $Q^\ast$ value than any other valid action would have done. Define $A(s)$ as the set of feasible action under state $s$, we have
-$$Q^\ast(s,a) \geq \max_{a^\prime \in A(s)}Q^\ast(s,a^\prime) \label{eqn:irl}$$ 
-satisfied for all $(s,a)$ pairs recorded in the user's trajectory. Consider the possible sub-optimal actions conducted by the users, we introduce slack variables $\xi_{s,a}$ into the problem formulation. Let $\xi_{s,a}$ be the difference of the actual action-value $Q^\ast(s,a)$, and the largest possible action-value $\max_{a^\prime \in A(s)}Q^\ast(s,a^\prime)$ whenever Eq. \eqref{eqn:irl} is not satisfied and zero otherwise, we minimize the summation of $\xi_{s,a}$ over the recorded user's trajectory
-
+The term $\pi^\ast$ indicates optimal policy, described by a distribution $\mathbb{P}(a|s)$ over the feasible action space $\mathcal{A}(s)$. In this setting, the weight $\phi$ must satisfy that the action the user has taken must induce a larger $Q^\ast$ value than any other valid action would have done. This optimality infers that
+\begin{equation}
+Q^\ast(s,a) \geq \max_{a^\prime \in A(s)}Q^\ast(s,a^\prime) \label{eqn:irl}
+\end{equation}
+is satisfied for all $(s,a)$ pairs appeared in the user's trajectory. Consider the existence of possible sub-optimal actions conducted by the user, we introduce slack variables $\xi_{s,a}$ into the problem formulation. Let $\xi_{s,a}$ be the difference of the actual action-value $Q^\ast(s,a)$, and the largest possible action-value $\max_{a^\prime \in A(s)}Q^\ast(s,a^\prime)$ whenever Eq. \eqref{eqn:irl} is not satisfied, and zero otherwise. We minimize the summation of $\xi_{s,a}$ over the recorded user's trajectory
+$$-C\sum_{s,a} \big[\min(0, Q^\ast(s,a)) - \max_{a^\prime \in A(s)\backslash a}Q^\ast(s,a^\prime)\big],$$
+which is then formulated into the following linear programming (LP) problem
 
 \begin{equation*}
 \begin{aligned}
-& \underset{\phi}{\text{minimize}}
-& & C\sum_{s,a} \max(0, \max_{a^\prime \in A(s)\backslash a}Q^\ast(s,a^\prime) - Q^\ast(s,a))\\
+& \underset{\phi^i, \xi_{s,a}}{\text{minimize}}
+& & C\sum \xi_{s,a} \\
 & \text{subject to}
-& & \phi \geq 0 \; \\
-\label{eqn:raw_lp}
+& & \phi^T(Q(s,a)-Q(s,a^\prime)) \geq - \xi_{s,a}, \; \forall (s,a) \in \tau, a^\prime \in \mathcal{A}(s)\backslash a \\
+&&& \phi \geq 0 \; \\
+&&& \xi_{s,a} \geq 0 \; \forall (s,a) \in \tau.
+\label{eqn:lp}
 \end{aligned}
 \end{equation*}
 
@@ -110,18 +116,6 @@ satisfied for all $(s,a)$ pairs recorded in the user's trajectory. Consider the 
 To solve \ref{eqn:lp} we have to be able to evaluate the $Q^*(s,a)$ value for every $(s,a)$ pair. Let
 $$Q^i(s,a)=\mathbf{E}[\sum_{t^\prime\geq t}\gamma^{t^\prime-t}r^i_{t^\prime} | s_{t}=s, a_{t}=a | \pi^{i,\ast}] \label{eqn:qi}$$
 be the action-value function, when the user only takes the $r^i$ into account and ignores all four other kinds of satisfactions. By definition we have $Q^*(s,a)=\phi^TQ(s,a)$, and it becomes suffice to the following linear programming, if $Q^i(s,a)$ can be evaluated for all $i$ and $(s,a)$ pairs in the trajectory.
-
-\begin{equation*}
-\begin{aligned}
-& \underset{\phi^i, \xi_{s,a}}{\text{minimize}}
-& & C\sum \xi_{s,a} \\
-& \text{subject to}
-& & \phi^T(Q(s,a)-Q(s,a^\prime)) \geq - \xi_{s,a}, \; \forall (s,a), a^\prime \in \mathcal{A}(s)\backslash a \\
-&&& \phi \geq 0 \; \\
-&&& \xi_{s,a} \geq 0 \; \forall (s,a).
-\label{eqn:lp}
-\end{aligned}
-\end{equation*}
 
 It suffices to solve $Q^i(s,a)$. As the number of feasible states $s$ could be arbitrary large, for an user in WoW, it's impossible to enumerate over the state space. Instead, we use deep-Q networks (DQN) \cite{} to approximate the $Q^i$ functions. The neural networks takes $s$ as input, and output the $Q$ value for every action $a$. We use the same network architecture for $i=1,\cdot,5$, illustrated in Fig. \ref{fig:arch}. The categorical elements in $s$ are firstly processed by an embedding layer, while the elements with real values are fed into an fully connected (FC) layer with rectifier non-linearity. The output of embedding layer and FC layer are then concatenated and fed into another FC layer with rectifier nonlinearity. A final FC layer is applied to compute the $Q$ value for each action $a^\prime$.
 
