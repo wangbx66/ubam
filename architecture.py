@@ -221,7 +221,7 @@ if __name__ == '__main__':
     input_height = 1
     discount = 0.99
     clip_delta = 1.0
-    lr = 0.000025
+    lr = 0.00005
     rho = 0.95
     rms_epsilon = 0.01
     num_actions = 165
@@ -266,9 +266,9 @@ if __name__ == '__main__':
     }
     params = lasagne.layers.helper.get_all_params(l_out)
     updates, grads = rmsprop(loss, params, lr, rho, rms_epsilon)
-    speed = [grad.norm(L=2) / grad.shape.prod() for grad in grads]
+    speed = sum([grad.norm(L=2) for grad in grads]) / sum([grad.shape.prod() for grad in grads])
 
-    train = theano.function(inputs=[], outputs=[loss, *speed], updates=updates, givens=train_subs)
+    train = theano.function(inputs=[], outputs=[loss, speed], updates=updates, givens=train_subs)
     # we evaluate it using value programming
     # actions_hat = TT.argmax(q_vals, axis=1)
     Q = theano.function(inputs=[states], outputs=q_vals)
@@ -277,26 +277,27 @@ if __name__ == '__main__':
     num_batch = 3000
     test_batch = 100
     for epoch in range(20000):
-    
+        total_loss = 0
+        total_speed = 0    
         for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
-            if idx % 1000 == 0:
-                print(idx)
             action_star = major(action)
             context_shared.set_value(context)
             rewards_shared.set_value(reward[:,reward_idx].reshape(batch_size, 1))
             actions_shared.set_value(action_star.reshape(batch_size, 1))
 
             train_results = train()
-            loss = train_results[0]
-            speed = train_results[1:]
-            speed = [float(x) for x in speed]
-            logging.info('loss = {0}, speed = {1}'.format(loss, speed))
+            loss, speed = train_results
+            #speed = train_results[1:]
+            #speed = [float(x) for x in speed]
+            total_loss += loss
+            total_speed += speed
+            
             accuracy = 0
             if idx >= num_batch - test_batch: 
                 q_hat = Q(context[:, :-skip_frames])
                 actions_hat = np.argmax(q_hat * candidates, axis=1)
                 accuracy += (actions_hat == action_star).sum()
-        logging.info('accuracy = {0}'.format(accuracy / (batch_size * test_batch)))
+        logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(loss, speed, accuracy / (batch_size * test_batch), epoch+1))
         network = lasagne.layers.get_all_param_values(l_out)
         netfile = open('data/Q{0}.pkl'.format(reward_idx), 'wb')
         pickle.dump(network, netfile)
