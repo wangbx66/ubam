@@ -232,6 +232,7 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
                     norm_num_zones = min(int(num_zones) / 12, 1.1)
                     norm_zone_stay = min(int(zone_stay) / 75, 1.1)
                     net_input[idx - start, :, 0] = np.array([int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay])
+                    #print([int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay])
                     if idx == start + num_frames - 1:
                         lvl_in = lvl
                     if idx == start + num_frames + skip_frames - 1:
@@ -239,9 +240,9 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
         #reward = np.float32(lvl_out ** power - lvl_in ** power)
         #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
         reward = np.array([float(x) for x in [r1, r2, r3, r4, r5]])
-        action = net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)
+        action = net_input[-skip_frames:, 3, 0].reshape((skip_frames, )).astype(np.uint8)
         action_set_lvl = lvls[lvl_in]
-        last_zone = net_input[-(skip_frames + 1), -3, 0].astype(np.uint8)
+        last_zone = net_input[-(skip_frames + 1), 3, 0].astype(np.uint8)
         if last_zone in transactions:
             action_set_transaction = transactions[last_zone] + [last_zone, ]
         else:
@@ -582,7 +583,7 @@ class NeuralAgent(object):
 if __name__ == "__main__":
     pass
     #rewards()
-    hdf_dump(size=100000)
+    hdf_dump(size=1000000)
     #for x in hdf(num_batch=100):
     #    print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
     #g = frames()

@@ -279,6 +279,7 @@ if __name__ == '__main__':
     for epoch in range(20000):
         total_loss = 0
         total_speed = 0    
+        accuracy = 0
         for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
             action_star = major(action)
             context_shared.set_value(context)
@@ -292,11 +293,13 @@ if __name__ == '__main__':
             total_loss += loss
             total_speed += speed
             
-            accuracy = 0
+
             if idx >= num_batch - test_batch: 
                 q_hat = Q(context[:, :-skip_frames])
                 actions_hat = np.argmax(q_hat * candidates, axis=1)
                 accuracy += (actions_hat == action_star).sum()
+                print(actions_hat, action_star)
+                print(accuracy)
         logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(loss, speed, accuracy / (batch_size * test_batch), epoch+1))
         network = lasagne.layers.get_all_param_values(l_out)
         netfile = open('data/Q{0}.pkl'.format(reward_idx), 'wb')
