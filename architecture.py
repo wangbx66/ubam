@@ -215,13 +215,15 @@ if __name__ == '__main__':
     l_out = build_wowah_network()
 
     batch_size = 32
+    num_batch = 3000
+    test_batch = 100
     num_frames = 10
     skip_frames = 4
     input_width = 8
     input_height = 1
     discount = 0.99
     clip_delta = 1.0
-    lr = 0.00005
+    lr = 0.000002
     rho = 0.95
     rms_epsilon = 0.01
     num_actions = 165
@@ -273,9 +275,6 @@ if __name__ == '__main__':
     # actions_hat = TT.argmax(q_vals, axis=1)
     Q = theano.function(inputs=[states], outputs=q_vals)
 
-
-    num_batch = 3000
-    test_batch = 100
     for epoch in range(20000):
         total_loss = 0
         total_speed = 0    
@@ -298,8 +297,8 @@ if __name__ == '__main__':
                 q_hat = Q(context[:, :-skip_frames])
                 actions_hat = np.argmax(q_hat * candidates, axis=1)
                 accuracy += (actions_hat == action_star).sum()
-                print(actions_hat, action_star)
-                print(accuracy)
+                #print(actions_hat, action_star)
+                #print(accuracy)
         logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(loss, speed, accuracy / (batch_size * test_batch), epoch+1))
         network = lasagne.layers.get_all_param_values(l_out)
         netfile = open('data/Q{0}.pkl'.format(reward_idx), 'wb')
