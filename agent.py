@@ -278,9 +278,9 @@ def batches(trajsjson='data/trajsjson.txt', batch_size=32):
             idx = 0
             batch = []
 
-def hdf_dump(path='data/episodes.hdf', size=10000):
+def hdf_dump(trajsjson='data/trajsjson.txt', path='data/episodes.hdf', size=10000):
     cd_size = 0
-    s = frames().__next__()
+    s = frames(trajsjson).__next__()
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
     num_zones = max([int(x) for x in zones.keys()]) + 1
@@ -290,7 +290,7 @@ def hdf_dump(path='data/episodes.hdf', size=10000):
         reward = fw.create_dataset('reward', (size, *shape[1]), 'f')
         action = fw.create_dataset('action', (size, *shape[2]), 'i')
         candidates = fw.create_dataset('candidates', (size, num_zones), 'i')
-        for idx, frame in enumerate(frames()):
+        for idx, frame in enumerate(frames(trajsjson)):
             if idx == size:
                 break
             if idx % 1000 == 0:
@@ -299,7 +299,7 @@ def hdf_dump(path='data/episodes.hdf', size=10000):
             context[idx] = frame[0]
             reward[idx] = frame[1]
             action[idx] = frame[2]
-            candidates[idx] = frames[3]
+            candidates[idx] = frame[3]
             cd_size += frame[3].sum()
             #candidates[idx] = np.array([int(x in frame[3]) for x in range(num_zones)])
             #cd_size += len(frame[3])
@@ -584,7 +584,7 @@ class NeuralAgent(object):
 if __name__ == "__main__":
     pass
     #rewards()
-    hdf_dump(size=1000000)
+    hdf_dump(size=10000)
     #for x in hdf(num_batch=100):
     #    print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
     #g = frames()

@@ -200,7 +200,7 @@ def major(actions, skip_frames, batch_size):
                     s = {}
                     break
         else:
-            z.append(action[i, -1])
+            z.append(actions[i, -1])
             s = {}
     return np.array(z, dtype=np.uint32)
 
@@ -286,7 +286,7 @@ if __name__ == '__main__':
     for epoch in range(20000):
         total_loss = 0
         total_speed = 0    
-        accuracy = 0
+        hits = 0
         for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
             action_star = major(action, skip_frames, batch_size)
             context_shared.set_value(context)
@@ -303,12 +303,13 @@ if __name__ == '__main__':
             if idx >= num_batch - test_batch: 
                 q_hat = q_func(context[:, :-skip_frames])
                 actions_hat = np.argmax(q_hat * candidates, axis=1)
-                accuracy += (actions_hat == action_star).sum()
+                hits += (actions_hat == action_star).sum()
                 #print(actions_hat, action_star)
-                #print(accuracy)
-        logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(total_loss, total_speed, accuracy / (batch_size * test_batch), epoch+1))
+                #print(hits)
+        accuracy = hits / (batch_size * test_batch)
+        logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(total_loss, total_speed, accuracy, epoch+1))
         logging.info(str(np.argmax(q_hat, axis=1)))
         network = lasagne.layers.get_all_param_values(l_out)
-        netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch, accuracy), 'wb')
+        netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch+1, accuracy), 'wb')
         pickle.dump(network, netfile)
             
