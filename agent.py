@@ -186,7 +186,7 @@ def rewards():
     with open('data/trajsjson.txt', 'w') as fw:
         fw.write(json.dumps({x:users[x] for x in users if not users[x] == 0}))
 
-def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.RandomState(123456)):
+def frames(num_frames=10, skip_frames=4, trajsjson='data/trajsjson.txt', rng=np.random.RandomState(123456)):
     num_cat_feature = 5
     num_ord_feature = 3
     with open('data/zonesjson.txt') as fp:
@@ -197,10 +197,8 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
     zones = {int(x):zones[x] for x in zones}
     lvls = {int(x):lvls[x] for x in lvls}
     transactions = {int(x):transactions[x] for x in transactions}
-    if require_expert:
-        fp = open('data/trajsjson.txt')
-    else:
-        fp = open('data/trajsjson.txt')
+    total_zones = max([int(x) for x in zones.keys()]) + 1
+    fp = open(trajsjson)
     users = json.loads(fp.readline())
     users = {int(x):users[x] for x in users if users[x] > 2 * num_frames}
     k = np.array(list(users.keys()), dtype=np.uint64)
@@ -258,17 +256,18 @@ def frames(num_frames=10, skip_frames=4, require_expert=False, rng=np.random.Ran
             print("*no adjacent zone")
             print(action_set_lvl, action_set_transaction)
             continue
-
+        action_set = np.array(action_set)
+        action_set_np = np.array([int(x in action_set) for x in range(total_zones)])
         frame += 1
         if frame == num_frames:
-            yield (net_input, reward, action, action_set)
+            yield (net_input, reward, action, action_set_np)
             frame = 0
             net_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
             reward = 0
             action = 0
 
-def batches(batch_size=32):
-    g = frames()
+def batches(trajsjson='data/trajsjson.txt', batch_size=32):
+    g = frames(trajsjson=trajsjson)
     batch = []
     idx = 0
     while True:
@@ -300,8 +299,10 @@ def hdf_dump(path='data/episodes.hdf', size=10000):
             context[idx] = frame[0]
             reward[idx] = frame[1]
             action[idx] = frame[2]
-            candidates[idx] = np.array([int(x in frame[3]) for x in range(num_zones)])
-            cd_size += len(frame[3])
+            candidates[idx] = frames[3]
+            cd_size += frame[3].sum()
+            #candidates[idx] = np.array([int(x in frame[3]) for x in range(num_zones)])
+            #cd_size += len(frame[3])
     print("averaged #candidate = {0}".format(cd_size / size))
 
 def hdf(path='data/episodes.hdf', batch_size=32, num_batch=1000):

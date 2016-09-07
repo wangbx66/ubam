@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
 
 from collections import OrderedDict
+from itertools import islice
 import logging
 import inspect
 import os
+import sys
 import pickle
 
 import lasagne
 import numpy as np
 import theano
 import theano.tensor as TT
+
+from agent import hdf
 
 def logging_config(name=None, file_level=logging.DEBUG, console_level=logging.DEBUG):
     if name is None:
@@ -165,7 +169,7 @@ def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[51
     l_out = lasagne.layers.DenseLayer(
         l_hidden2,
         num_units=output_dim,
-        nonlinearity=None,
+        nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.Normal(.01),
         b=lasagne.init.Constant(.1)
     )
@@ -177,12 +181,12 @@ def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[51
     
     return l_out#, locals()
 
-def major(actions):
+def major(actions, skip_frames, batch_size):
     z = []
     for i in range(batch_size):
         s = {}
         for j in range(skip_frames):
-            a = action[i, j]
+            a = actions[i, j]
             if a in s:
                 s[a] += 1
             else:
@@ -190,7 +194,7 @@ def major(actions):
         m = max(list(s.values()))
         if m > 1:
             for j in range(skip_frames):
-                a = action[i, -j-1]
+                a = actions[i, -j-1]
                 if s[a] == m:
                     z.append(a)
                     s = {}
@@ -201,8 +205,12 @@ def major(actions):
     return np.array(z, dtype=np.uint32)
 
 if __name__ == '__main__':
-    from agent import hdf
-    from itertools import islice
+    if not os.path.exists('data/networks'):
+        os.mkdir('data/networks')
+    
+    reward_idx = int(sys.argv[1])
+    num_batch = int(sys.argv[2])
+    lr = float(sys.argv[3])
     
     logging_config()
     
@@ -215,7 +223,7 @@ if __name__ == '__main__':
     l_out = build_wowah_network()
 
     batch_size = 32
-    num_batch = 3000
+    #num_batch = 3000
     test_batch = 100
     num_frames = 10
     skip_frames = 4
@@ -223,11 +231,11 @@ if __name__ == '__main__':
     input_height = 1
     discount = 0.99
     clip_delta = 1.0
-    lr = 0.000002
+    #lr = 0.00005
     rho = 0.95
     rms_epsilon = 0.01
     num_actions = 165
-    reward_idx = 0
+    #reward_idx = 0
 
     states = TT.tensor4('states')
     next_states = TT.tensor4('next_states')
@@ -249,7 +257,7 @@ if __name__ == '__main__':
     
     q_vals = lasagne.layers.get_output(l_out, states)
     next_q_vals = lasagne.layers.get_output(l_out, next_states)
-    next_q_vals = theano.gradient.disconnected_grad(next_q_vals)
+    #next_q_vals = theano.gradient.disconnected_grad(next_q_vals)
 
     actionmask = TT.eq(TT.arange(num_actions).reshape((1, -1)), actions.reshape((-1, 1))).astype(theano.config.floatX)
     target = (rewards + discount * TT.max(next_q_vals, axis=1, keepdims=True))
@@ -273,14 +281,14 @@ if __name__ == '__main__':
     train = theano.function(inputs=[], outputs=[loss, speed], updates=updates, givens=train_subs)
     # we evaluate it using value programming
     # actions_hat = TT.argmax(q_vals, axis=1)
-    Q = theano.function(inputs=[states], outputs=q_vals)
+    q_func = theano.function(inputs=[states], outputs=q_vals)
 
     for epoch in range(20000):
         total_loss = 0
         total_speed = 0    
         accuracy = 0
         for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
-            action_star = major(action)
+            action_star = major(action, skip_frames, batch_size)
             context_shared.set_value(context)
             rewards_shared.set_value(reward[:,reward_idx].reshape(batch_size, 1))
             actions_shared.set_value(action_star.reshape(batch_size, 1))
@@ -291,16 +299,16 @@ if __name__ == '__main__':
             #speed = [float(x) for x in speed]
             total_loss += loss
             total_speed += speed
-            
 
             if idx >= num_batch - test_batch: 
-                q_hat = Q(context[:, :-skip_frames])
+                q_hat = q_func(context[:, :-skip_frames])
                 actions_hat = np.argmax(q_hat * candidates, axis=1)
                 accuracy += (actions_hat == action_star).sum()
                 #print(actions_hat, action_star)
                 #print(accuracy)
-        logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(loss, speed, accuracy / (batch_size * test_batch), epoch+1))
+        logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(total_loss, total_speed, accuracy / (batch_size * test_batch), epoch+1))
+        logging.info(str(np.argmax(q_hat, axis=1)))
         network = lasagne.layers.get_all_param_values(l_out)
-        netfile = open('data/Q{0}.pkl'.format(reward_idx), 'wb')
+        netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch, accuracy), 'wb')
         pickle.dump(network, netfile)
             
