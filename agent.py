@@ -186,7 +186,7 @@ def rewards():
     with open('data/trajsjson.txt', 'w') as fw:
         fw.write(json.dumps({x:users[x] for x in users if not users[x] == 0}))
 
-def frames(num_frames=10, skip_frames=4, trajsjson='data/trajsjson.txt', rng=np.random.RandomState(123456)):
+def frames(num_frames=10, skip_frames=4, trajsjson='data/trajsjson.txt', rng=np.random.RandomState(123456), flt=None):
     num_cat_feature = 5
     num_ord_feature = 3
     with open('data/zonesjson.txt') as fp:
@@ -213,12 +213,34 @@ def frames(num_frames=10, skip_frames=4, trajsjson='data/trajsjson.txt', rng=np.
     action = 0
     power = 2.3
     while True:
+        valid = True
         user = rng.choice(k, p=p)
         start = rng.randint(low=0, high=users[user] - num_frames - skip_frames)
         with open(os.path.join('data/trajs', '{0}.txt'.format(user))) as fp:
             for idx, line in enumerate(fp):
                 if idx >= start and idx < start + num_frames + skip_frames:
                     idx_logstats, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5 = line.strip().split(',')
+                    idx_logstats = int(idx_logstats)
+                    user = int(user)
+                    tt = int(tt)
+                    guild = int(guild)
+                    lvl = int(lvl)
+                    race = int(race)
+                    category = int(category)
+                    zone = int(zone)
+                    seq = int(seq)
+                    zonetype = int(zonetype)
+                    num_zones = int(num_zones)
+                    zone_stay = int(zone_stay)
+                    r1 = float(r1) 
+                    r2 = float(r2)
+                    r3 = float(r3)
+                    r4 = float(r4) 
+                    r5 = float(r5)
+                    if not flt is None:
+                        if flt(idx_logstats, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5):
+                            valid = False
+                            break
                     #print(idx, start, start + num_frames + skip_frames - 1)
                     # possible additional features
                     # the time elapse during current zone
@@ -237,6 +259,8 @@ def frames(num_frames=10, skip_frames=4, trajsjson='data/trajsjson.txt', rng=np.
                         lvl_out = lvl
         #reward = np.float32(lvl_out ** power - lvl_in ** power)
         #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
+        if not valid:
+            continue
         reward = np.array([float(x) for x in [r1, r2, r3, r4, r5]])
         action = net_input[-skip_frames:, 3, 0].reshape((skip_frames, )).astype(np.uint8)
         action_set_lvl = lvls[lvl_in]
@@ -278,9 +302,9 @@ def batches(trajsjson='data/trajsjson.txt', batch_size=32):
             idx = 0
             batch = []
 
-def hdf_dump(trajsjson='data/trajsjson.txt', path='data/episodes.hdf', size=10000):
+def hdf_dump(trajsjson='data/trajsjson.txt', path='data/episodes.hdf', size=10000, flt=None):
     cd_size = 0
-    s = frames(trajsjson).__next__()
+    s = frames(trajsjson=trajsjson, flt=flt).__next__()
     with open('data/zonesjson.txt') as fp:
         zones = json.loads(fp.readline())
     num_zones = max([int(x) for x in zones.keys()]) + 1
@@ -290,10 +314,10 @@ def hdf_dump(trajsjson='data/trajsjson.txt', path='data/episodes.hdf', size=1000
         reward = fw.create_dataset('reward', (size, *shape[1]), 'f')
         action = fw.create_dataset('action', (size, *shape[2]), 'i')
         candidates = fw.create_dataset('candidates', (size, num_zones), 'i')
-        for idx, frame in enumerate(frames(trajsjson)):
+        for idx, frame in enumerate(frames(trajsjson=trajsjson, flt=flt)):
             if idx == size:
                 break
-            if idx % 1000 == 0:
+            if idx % 1000 == 0 and size > 30000:
                 fw.flush()
                 print(idx)
             context[idx] = frame[0]
@@ -303,12 +327,12 @@ def hdf_dump(trajsjson='data/trajsjson.txt', path='data/episodes.hdf', size=1000
             cd_size += frame[3].sum()
             #candidates[idx] = np.array([int(x in frame[3]) for x in range(num_zones)])
             #cd_size += len(frame[3])
-    print("averaged #candidate = {0}".format(cd_size / size))
+    #print("averaged #candidate = {0}".format(cd_size / size))
 
 def hdf(path='data/episodes.hdf', batch_size=32, num_batch=1000):
     fp = h5py.File(path)
     context = fp['context']
-    assert(context.shape[0] > batch_size * num_batch)
+    assert(context.shape[0] >= batch_size * num_batch)
     reward = fp['reward']
     action = fp['action']
     candidates = fp['candidates']
