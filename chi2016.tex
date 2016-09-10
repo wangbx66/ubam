@@ -96,7 +96,7 @@ Q^\ast(s,a) \geq \max_{a^\prime \in A(s)}Q^\ast(s,a^\prime) \label{eqn:irl}
 \end{equation}
 is satisfied for all $(s,a)$ pairs appeared in the user's trajectory. Consider the existence of possible sub-optimal actions conducted by the user, we introduce slack variables $\xi_{s,a}$ into the problem formulation. Let $\xi_{s,a}$ be the difference of the actual action-value $Q^\ast(s,a)$, and the largest possible action-value $\max_{a^\prime \in A(s)}Q^\ast(s,a^\prime)$ whenever Eq. \eqref{eqn:irl} is not satisfied, and zero otherwise. We minimize the summation of $\xi_{s,a}$ over the recorded user's trajectory
 \begin{equation}
--C\sum_{s,a} \big[\min(0, Q^\ast(s,a)) - \max_{a^\prime \in A(s)\backslash a}Q^\ast(s,a^\prime)\big], \label{eqn:slack}
+-C\sum_{s,a} \left[\min(0, Q^\ast(s,a) - \max_{a^\prime \in A(s)\backslash a}Q^\ast(s,a^\prime))\right], \label{eqn:slack}
 \end{equation}
 which is then formulated into the following linear programming (LP) problem
 
@@ -119,22 +119,22 @@ is the action-value function, when the user only takes the $r^i$ into account an
 
 \subsection{Action-Value Function Approximation}
 
-To solve \ref{eqn:lp} it suffices to estimate $Q^i(s,a)$. As the number of feasible states $s$ could be arbitrary large, for an user in WoW, it's impossible to enumerate over the state space. Instead, we use deep-Q networks (DQN) \cite{} to approximate the $Q^i$ functions. The neural network takes $s$ as input, and output the $Q$ value for every action $a$. We use the same network architecture for $i=1,\dots,5$, illustrated in Fig. \ref{fig:arch}. The categorical elements in $s$ are firstly processed by an embedding layer \cite{}, while the numeral elements are fed into an fully connected (FC) layer with rectifier non-linearity. The output of embedding layer and FC layer are then concatenated and fed into another FC layer with rectifier nonlinearity. A final FC layer is applied to compute the $Q(s,a)$ value for each action $a$.
+To solve LP \eqref{eqn:lp} it suffices to estimate $Q^i(s,a)$. As the number of feasible states $s$ could be arbitrary large, for an user in WoW, it's impossible to enumerate over the state space. Instead, we use deep-Q networks (DQN) \cite{} to approximate the $Q^i$ functions. The neural network takes $s$ as input, and output the $Q$ value for every action $a$. We use the same network architecture for $i=1,\dots,5$, illustrated in Fig. \ref{fig:arch}. The categorical elements in $s$ are firstly processed by an embedding layer \cite{}, while the numeral elements are fed into an fully connected (FC) layer with rectifier non-linearity. The output of embedding layer and FC layer are then concatenated and fed into another FC layer with rectifier nonlinearity. A final FC layer is applied to compute the $Q(s,a)$ value for each action $a$.
 
 Denote the trainable parameters in the Q-network as $\theta^i$, we optimize over $\theta^i$ in order to approximate Eq. \eqref{eqn:qi}. The key observation of Q-learning is that, the action-value function, by its definition, should satisfy the Bellman equation \cite{}. That is, if the user takes action $a$ and the state turns into $s_{t+1}$ from $s_t$, we have
 \begin{equation}
 Q^i(s_t,a_t)=r_{t} + \gamma \max_{a^\prime}Q^i(s_{t+1}, a^\prime). \label{eqn:bellman}
 \end{equation}
-Q-learning tries to find the actio-value function satisfying Eq. \eqref{eqn:bellman}, by minimizing the squared difference $L$ between both sides of the equation. Let
+Q-learning tries to find the action-value function satisfying Eq. \eqref{eqn:bellman}, by minimizing the squared difference $L$ between both sides of the equation. Let
 \begin{equation*}
-L^i=\mathbb{E}_{s_t, a_t, r_t, s_{t+1}} \frac{1}{2}(Q^i(s_t,a_t)- r_{t} + \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime))^2.
+L^i=\mathbb{E}_{s_t, a_t, r_t, s_{t+1}} \frac{1}{2}(Q^i(s_t,a_t)- r_{t} - \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime))^2.
 \end{equation*}
 Since $L^i$ is differentiable with respect to $\theta^i$, $\theta^i$ can be updated via stochastic gradient descent, by
 \begin{eqnarray*}
 \theta^i \leftarrow \theta^i - \alpha\frac{\partial L}{\partial \theta^i}\Big|_{s_t, a_t, r_t, s_{t+1}}
 \end{eqnarray*}
 We take advantage of the algorithm introduced in \cite{}, that the target network only get updated periodically, which is important for the stability of DQN training. The derivative of $L$ with respective $\theta^i$ becomes
-$$\frac{\partial L}{\partial \theta^i} = \mathbb{E} (Q^i(s_t,a_t)- r_{t} + \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime | \theta^{i -}))\cdot \frac{\partial{Q^i(s_t,a_t)}}{\partial{\theta^i}},$$
+$$\frac{\partial L}{\partial \theta^i} = \mathbb{E}\left[ (Q^i(s_t,a_t)- r_{t} + \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime | \theta^{i -}))\cdot \frac{\partial{Q^i(s_t,a_t)}}{\partial{\theta^i}}\right],$$
 where $\theta^{i-}$ is the network parameter which is assigned current $\theta^i$ value periodically during training.
 
 \subsection{Agreement Between $Q^1$ and Advancing Behaviors}
