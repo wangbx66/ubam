@@ -98,7 +98,7 @@ class QwQ(lasagne.layers.Layer):
     def get_output_for(self, input_tensor, **kwargs):
         return input_tensor.astype(self.dtype)
 
-def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[512,5,10,165,9], output_dim=165):
+def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[513,5,10,165,9], output_dim=165):
 
     # int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay
 
@@ -174,7 +174,7 @@ def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[51
         b=lasagne.init.Constant(.1)
     )
     
-    sample = np.zeros((32,num_frames,input_width,input_height), dtype=np.float32)
+    sample = np.zeros((32, num_frames, input_width,input_height), dtype=np.float32)
     sample[:,:,:cat_length,:] = sample[:,:,:cat_length,:].astype(np.uint32)
 
     context.tag.test_value = sample
@@ -294,13 +294,13 @@ if __name__ == '__main__':
             context_shared.set_value(context)
             rewards_shared.set_value(reward[:,reward_idx].reshape(batch_size, 1))
             actions_shared.set_value(action_star.reshape(batch_size, 1))
-            if not idx >= num_batch - test_batch:
-                train_results = train()
-                loss, speed = train_results
-                #speed = train_results[1:]
-                #speed = [float(x) for x in speed]
-                total_loss += loss
-                total_speed += speed
+
+            train_results = train()
+            loss, speed = train_results
+            #speed = train_results[1:]
+            #speed = [float(x) for x in speed]
+            total_loss += loss
+            total_speed += speed
 
             if idx >= num_batch - test_batch:
                 q_hat = q_func(context[:, :-skip_frames])
@@ -315,7 +315,7 @@ if __name__ == '__main__':
         stick = stays / (batch_size * test_batch)
         predict_stick = predict_stays / (batch_size * test_batch)
         logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(total_loss, total_speed, accuracy, epoch+1))
-        print(stick, predict_stick)
+        print('stay rate = {0}, unary rate = {1}'.format(stick, predict_stick))
         logging.info(str(np.argmax(q_hat, axis=1)))
         network = lasagne.layers.get_all_param_values(l_out)
         netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch+1, accuracy), 'wb')
