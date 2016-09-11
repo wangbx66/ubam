@@ -120,7 +120,7 @@ def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[51
 
         cat_int = QwQ(
             cat_slice,
-            dtype='uint8',
+            dtype='int16',
         )
 
         cat_embed = lasagne.layers.EmbeddingLayer(
@@ -210,7 +210,7 @@ if __name__ == '__main__':
     
     reward_idx = int(sys.argv[1])
     num_batch = int(sys.argv[2])
-    lr = float(sys.argv[3])
+    lr = float(sys.argv[3]) # 0.00045
     
     logging_config()
     
@@ -287,27 +287,35 @@ if __name__ == '__main__':
         total_loss = 0
         total_speed = 0    
         hits = 0
+        stays = 0
+        predict_stays = 0
         for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
             action_star = major(action, skip_frames, batch_size)
             context_shared.set_value(context)
             rewards_shared.set_value(reward[:,reward_idx].reshape(batch_size, 1))
             actions_shared.set_value(action_star.reshape(batch_size, 1))
+            if not idx >= num_batch - test_batch:
+                train_results = train()
+                loss, speed = train_results
+                #speed = train_results[1:]
+                #speed = [float(x) for x in speed]
+                total_loss += loss
+                total_speed += speed
 
-            train_results = train()
-            loss, speed = train_results
-            #speed = train_results[1:]
-            #speed = [float(x) for x in speed]
-            total_loss += loss
-            total_speed += speed
-
-            if idx >= num_batch - test_batch: 
+            if idx >= num_batch - test_batch:
                 q_hat = q_func(context[:, :-skip_frames])
+                last = context[:,-(skip_frames+1),3,:].flatten()
                 actions_hat = np.argmax(q_hat * candidates, axis=1)
                 hits += (actions_hat == action_star).sum()
+                stays += (last == action_star).sum()
+                predict_stays += (last == actions_hat).sum()
                 #print(actions_hat, action_star)
                 #print(hits)
         accuracy = hits / (batch_size * test_batch)
+        stick = stays / (batch_size * test_batch)
+        predict_stick = predict_stays / (batch_size * test_batch)
         logging.info('epoch #{3}: loss = {0}, speed = {1}, accuracy = {2}'.format(total_loss, total_speed, accuracy, epoch+1))
+        print(stick, predict_stick)
         logging.info(str(np.argmax(q_hat, axis=1)))
         network = lasagne.layers.get_all_param_values(l_out)
         netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch+1, accuracy), 'wb')
