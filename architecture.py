@@ -98,7 +98,7 @@ class QwQ(lasagne.layers.Layer):
     def get_output_for(self, input_tensor, **kwargs):
         return input_tensor.astype(self.dtype)
 
-def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[513,5,10,165,9], output_dim=165):
+def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[512,5,10,165,9], output_dim=165):
 
     # int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay
 

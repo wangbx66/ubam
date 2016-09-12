@@ -10,6 +10,7 @@ import lasagne
 import numpy as np
 import theano
 import theano.tensor as TT
+import pulp
 from scipy.optimize import linprog
 
 from architecture import build_wowah_network
@@ -86,22 +87,38 @@ def cons_gen(trajsjson, name, flt):
         for i in range(num_zones):
             if candidates[i] == 1 and not i == action:
                 A.append(d_q[i, :].copy())
-    n_cons = len(A)
-    z = np.array(A)
-    #A = np.concatenate((np.array(A), -np.eye(n_cons)), axis=1)
-    #A = np.concatenate((A, np.concatenate((-np.ones((1, n_r)), np.zeros((1, A.shape[0]))), axis=1)), axis=0)
+    A = np.array(A)
+    return A
+
+def scipysol(A, b, c):
+    n_cons = A.shape[0]
+    A = np.concatenate((A, -np.eye(n_cons)), axis=1)
+    A = np.concatenate((A, np.concatenate((-np.ones((1, n_r)), np.zeros((1, A.shape[0]))), axis=1)), axis=0)
     b = np.concatenate((np.zeros(n_cons), -np.ones(1)))
     c = np.concatenate((np.zeros(n_r), C * np.ones(n_cons)), axis=0)
-    return A, b, c, z
+    sol = linprog(c, A_ub=A, b_ub=b, options={'maxiter': 10000})
+    return sol
 
-for ll in range(120000, 200000, 4320):
-    A, b, c, z = cons_gen(*timeinterval(ll, ll+4320))
-    s = pos(z)
-    t = neg(z)
+def pulpsol(A):
+    variables = list(range(A.shape[0]+5))
+    x = pulp.LpVariable.dicts('vars', variables, lowBound=0)
+    lp_model = pulp.LpProblem('recover', pulp.LpMinimize)
+    lp_model += sum(x[var] for var in variables if var >=5)
+    for i in range(A.shape[0]):
+        lp_model += sum(A[i,var] * x[var] for var in range(5)) <= x[i+5]
+    lp_model += sum([x[var] for var in range(5)]) >= 1
+    lp_model.solve()
+    return lp_model, x
+
+if __name__ == '__main__':
+    #for ll in range(120000, 200000, 4320):
+    ll=149000
+    A = cons_gen(*timeinterval(ll, ll+4320))
+    s = pos(A)
+    t = neg(A)
     phi = s.mean(axis=0)
     print(phi*1.01/phi.sum())
     per = [int(0.5+x*100/phi.sum()) for x in phi]
     print(per)
+    lp_model, x = pulpsol(A)
 
-#sol = linprog(c, A_ub=A, b_ub=b, options={'maxiter': 10000})
-#print(sol)
