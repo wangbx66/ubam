@@ -2,6 +2,7 @@
 
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{amsfonts}
 \usepackage{bm}
 \usepackage{xcolor}
 \usepackage{booktabs}
@@ -9,9 +10,8 @@
 \usepackage{blindtext}
 \usepackage[english]{babel}
 \usepackage[utf8x]{inputenc}
-\usepackage{amsfonts}
-\usepackage{graphicx}
 \usepackage[colorinlistoftodos]{todonotes}
+\usepackage{graphicx}
 \usepackage{tabularx}
 
 % \long\def\/*#1*/{}
@@ -46,40 +46,97 @@
 
 \abstract
 
-Massively multiplayer online role-playing game (MMORPG), such as World of Warcraft (WoW), attracts millions of users and many of them spend thousands of hours playing games online. Understanding their behaviors and the underlying motivations is of great interests to game designers and researchers, and also to parents and educators. We [applied] the deep reinforcement learning to model users' playing strategies as well as inverse reinforcement learning to model their motivations. We use a massive and complex online game behavioral dataset, World of Warcraft Avatar History (WoWAH), which recorded over 70,000 users' log data spanning 3 years time period. Our trained model not only can predict users' behaviors with a high level of accuracy. Moreover, it can also reveal users' motivation level changes in Achievement, Relationship, and Engagement. 
+Massively multiplayer online role-playing game (MMORPG), such as World of Warcraft (WoW), attracts millions of users and many of them spend thousands of hours playing games online. 
+Understanding their behaviors and the underlying motivations is of great interests to game designers and researchers, and also to parents and educators. 
+We employ deep reinforcement learning algorithm to model users' playing strategies, and propose an inverse reinforcement learning algorithm to model their motivations. 
+We use a massive and complex online game behavioral dataset, World of Warcraft Avatar History (WoWAH), which records over 70,000 users' log data spanning 3 years time period. 
+Our trained model not only can predict users' behaviors with a high level of accuracy. 
+Moreover, it can also reveal users' motivation level changes in terms of \textit{Achievement}, \textit{Relation}, and \textit{Engagement}. 
+
+\category{H.5.m}{Information Interfaces and Presentation (e.g. HCI)}{Miscellaneous} \category{I.2.1}{Artificial Intelligence}{Applications and Expert Systems}
+\keywords{Online game motivation; game design; reinforcement learning; apprenticeship learning;}
 
 \section{Introduction}
 
-Understanding Massively multiplayer online role-playing game (MMORPG) games satisfaction mechanism and user behaviors could be non-trivial. As human players have a mixed feeling from different perceptions and they act not for a concrete, explicit objective such as winning an episode or taking high scores. While it's plausible to build a gaming bot from the player log data, to advance in the game, it ignores other dimensions of motivation which the players also care about. The game designers and researchers, also parents and educators, are, however, keen to reveal the underlying mechanism instead of just mastering the game.
+Understanding Massively multiplayer online role-playing game (MMORPG) games satisfaction mechanism and user behaviors could be non-trivial. 
+As human players have a mixed feeling from different perceptions and they act not for a concrete, explicit objective such as winning an episode or taking high scores. 
+While it's plausible to build a gaming bot from the player log data, to advance in the game, it ignores other dimensions of motivation which the players also care about. 
+The game designers and researchers, also parents and educators, are, however, keen to reveal the underlying mechanism instead of just mastering the game.
 
-Take World of Warcraft (WoW), which is one of the most successful MMO games in the world, as an example. It's massive, and multiplayer as millions of players subscribe the game platform, on which players can communicate with others, finish some quests together, compete with each other, and even build their own guilds. WoW also provides different kinds of races, careers and optional requests that could serve players extra flexibility to evolve different game strategies. With all those features the players receive many different dimensions of satisfaction which eventually compose the general reward system of the game.
+Take World of Warcraft (WoW), which is one of the most successful MMO games in the world, as an example. 
+It's massive, and multiplayer as millions of players pay to subscribe the game platform. 
+On the platform players can communicate with others, finish some quests cooperatively, compete with each other, and even build their own guilds. 
+WoW also provides different kinds of races, careers and optional requests that could serve players extra flexibility to evolve different game styles. 
+With all those features the players' behavior can be very complex, as they receive different dimensions of satisfaction which eventually compose the general reward system of the game.
+%With all those features the players receive many different dimensions of satisfaction which eventually compose the general reward system of the game.
 %It was released by Blizzard in 2004 and stills continuing updating nowadays.
 
-For its huge research and commercial value to study game players' behavior, attentions has been drawn for both qualitative and quantitative studies. World of Warcraft Avatar History (WoWAH) dataset \cite{lee2011world}, published in 2011, records the location (in term of zone) of over 70,000 users every 10 minutes, together with some essential statistical analysis \footnote{we talk about the reason choosing this dataset in the first section of \textit{Method}}. However, those analysis and the further studies based on the dataset are far from fully utilization of the data. While some of them use simple classifiers of clusterings for behavior analysis \cite{suznjevic2011mmorpg,drachen2014comparison}, others focues on forcasting future events such as unsubscription of game or violation of terms \cite{bauckhage2015clustering,thawonmas2011analysis,lou2012forecasting}. Few of them are effectively modeling the interaction between the players and the game environment, neither on another dataset. On the other hand some studies tries to conduct studies on player motivations \cite{Bell2013a}, but only able to apply some basic machine learning tools such as clustering.  
+For its huge research and commercial value to study game players' behavior, attentions has been drawn for both qualitative and quantitative studies.
+In contrary to WoW, many studies are conducted on single-player game or multi-player but zero-sum game. 
+For those environments, advancing usually serves as the sole criterion of game motivation.
+In Game Trace Archive (GTA) \cite{guo2012game} who has been collecting online gaming data since 2012, 10 out of 14 traces are from the game environment stated above.
+Although reinforcement learning (RL) algorithms have been succeeded in mastering such kind of games, it does not help figuring out the underlying motivation, neither the complex reward mechanism existing in MMO games and in real world. 
+Even for those studies in WoW, datasets such as Very Large WoW Armory Dataset \cite{Bell2013a} focus on certain campaigns instead of general gaming strategies because of its short time span and fine-grained actions (such as spelling).
+Taking that into consideration, the episodes recorded is still mostly about advancing, and game tactics.
+
+World of Warcraft Avatar History (WoWAH) dataset \cite{lee2011world}, published in 2011, records the location (in term of zone) of over 70,000 users every 10 minutes, together with some essential statistical analysis. 
+%\footnote{we talk about the reason choosing this dataset in the first section of \textit{Method}} 
+However, those analysis and the further studies based on the dataset are far from fully utilization of the data. 
+While some of them use simple classifiers or clustering for behavior analysis \cite{suznjevic2011mmorpg,drachen2014comparison}, others focus on forecasting future events such as unsubscribing of game or violation of terms \cite{bauckhage2015clustering,thawonmas2011analysis,lou2012forecasting}. 
+Few of them are effectively modeling the interaction between the players and the game environment, neither on another dataset. 
+On the other hand some studies tries to conduct studies on player motivations \cite{Bell2013a}, but only able to apply some basic machine learning tools such as clustering.  
 %First, statistical approaches usually collapse the data over the time scale, which ignores the dynamic of both gaming environment and players.
 
-We re-employ the dataset in a totally different way: to model human-computer interaction from a reinforcement learning perspective. The human player and computer are characterized by a pair of agent and environment, as shown in Fig. \ref{fig:chi}. It gives an analogy between the traditional user experience model on the left, and the reinforcement learning scheme on the right. In the model, each player is modeled by an agent, whose zone transactions are regarded as the actions of the agent. Existing models in reinforcement learning succeed in modeling human behaviors by training the agent to maximize the explicitly defined reward. However, in WoW and most of the cases in CHI, the definition of reward is vague or partial, e.g. we can't tell if a play is optimal simply by looking at the experience gain credited to this play. Even if some could try building a reward function according to their knowledge of certain environments, it worth to note that figuring out the reward mechanism itself is a valuable task. In fact, figuring out the reward mechanism gives the most succinct description of the task. Especially for the developers of the environment, it's a way to give a quantitative representation of what they have designed.
+We re-employ the WoWAH dataset in a totally different way: to model human-computer interaction (HCI) from a reinforcement learning perspective. 
+The human player and computer are characterized by a pair of agent and environment, as shown in Fig. \ref{fig:chi}. 
+We show an interesting analogy between the traditional user experience model on the left, and the reinforcement learning scheme on the right. 
+In the model, each player is modeled by an agent, whose zone transactions are regarded as the actions of the agent. 
+Instead of manually collect opinions from the players as the feedback, we utilize the actual reward system of the game which provide diverse satisfactions.
+%Existing models in reinforcement learning succeed in modeling human behaviors by training the agent to maximize the explicitly defined reward. 
+A common difficulty in WoW and most of the cases in HCI is that the definition of reward is implicit or partial, e.g. we can't tell if a play is optimal simply by looking at the experience gain credited to this play. 
+Even if some could try building a reward function according to their knowledge of certain environments, it worth to note that figuring out the reward mechanism itself is a valuable task. 
+In fact, the, usually underlying, reward mechanism gives the most succinct description of the task. 
+Especially for the developers of the environment, it's a way to give a quantitative representation of what they have designed.
 
-The process of recovering the reward function is inverse reinforcement learning (IRL). In a data-driven manner, it recovers the underlying reward mechanism that induces the recorded user behaviors, simply by assuming that those players are trying to persue their rewards. Most of the IRL algorithms require we have access the dynamic of the environment, that is in WoW, we simulate the player's action and observe the feedback from the environment. Although we obviously don't have it, we address it by proposing an IRL algorithm based on purely off-policy training. The model analyzes the behaviors of the players, using the trajectories composed of player locations, and returns the reward function under which those trajectories are most plausible to happen. With the recovered reward, we train an agent to best mimic the general user behavior in WoWAH dataset. As our reward recovery algorithm works for any set of trajectories, we conduct future studies to character the dynamics of the game environment thus how design factors working on user behaviors, and compare different groups of users to examine the divergence of motivations. 
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=\textwidth]{figs/rl-vs-chi.jpg}
+%    \caption{User experience model (left) and reinforcement learning model (right)}
+%    \label{fig:chi}
+%\end{figure}
+
+
+The process of recovering the reward function is inverse reinforcement learning (IRL). 
+In a data-driven manner, it recovers the underlying reward function which induces the recorded user behaviors, simply by assuming that those players are trying to maximize their rewards. 
+Most of the IRL algorithms require we have access the dynamic of the environment, that is in WoW, we simulate the player's action and observe the feedback from the environment. 
+Although we obviously don't have it, we address it by proposing an IRL algorithm based on purely off-policy learning. 
+The model analyzes the behaviors of the players, using the trajectories composed of player locations, and returns the reward function under which those trajectories are most plausible to happen. 
+With the recovered reward, we train an agent to best mimic the general user behavior in WoWAH dataset. 
+As our reward recovery algorithm works for any set of trajectories, we conduct future studies to character the dynamics of the game environment thus how design factors working on user behaviors, and compare different groups of users to examine the divergence of game motivations.
+Consistency was observed between our model results and empirical analysis on the game environment. 
 
 \begin{table}
-\caption{WoWAH Dataset Attributes}
-\begin{tabularx}{\textwidth}{lX}
-    Attribute & Value \\
-    \midrule
-    Duration & 1107 days \\
-    Sample Interval & Every 10 minutes \\
-    \#Users & 70,000+ \\
-    Locations & One of 165 zones \\
-    \label{tbl:wowah}
-\end{tabularx}
+    \caption{WoWAH Dataset Attributes}
+    \begin{tabularx}{\textwidth}{lX}
+        Attribute & Value \\
+        \midrule
+        Duration & 1107 days \\
+        Sample Interval & Every 10 minutes \\
+        \#Users & 70,000+ \\
+        Locations & One of 165 zones \\
+        \label{tbl:wowah}
+    \end{tabularx}
 \end{table}
 
 \section{Related Work}
 
 \subsection{Online Game Player Motivation And Rewards}
 
-One reason that online games appeal so many players is that it provides the environments for different kinds of play styles. The same online game may have respective meanings for different players. In the environment players gain certain kind of satisfactions (rewards) they want by conducting their actions. It's natural to assume a user's behaviors are highly correlated with the user's demanding satisfaction. And for game designers, finding the demanding satisfactions of users could make it easier to serve the users with better experience. 
+One reason that online games appeal so many players is that it provides the possibility for different kinds of play styles. 
+The same online game may have respective meanings for different players. 
+In the game environment, players pursue certain kinds of satisfactions they want by conducting their actions, which eventually compose the user behaviors we observe. 
+Hence, it's natural to assume a user's behaviors are highly correlated with the user's specific reward mechanism, represented by their demanding satisfactions. 
+And for game designers and research, finding the demanding satisfactions of users could yield better understanding of the game, and ease to serve the users with better experience. 
 
 Previous study categories the satisfactions into three major aspects, namely, achievement satisfactions, social satisfactions, and immersion satisfactions. It was then divided into ten subcategories, briefed in Table. \ref{tbl:components}. More detailes are introduced in \cite{yee2006motivations} and \cite{yee2006demographics}. The weights associated with these ten kinds of satisfactions basically chartered a user's profile, and it would be very meaningful the weights can be recovered in a purely data-driven process, based on the user's playing history.
 
@@ -135,6 +192,8 @@ To model the user's behavior in a reinforcement learning perspective, we define 
 \end{tabularx}
 \end{table}
 
+
+
 \subsection{Reward Recovery}
 
 We apply apprenticeship via inverse reinforcement learning, in order to recover the underlying reward mechanism of the players, using the trajectory $\tau$ of a user (or a group of users). Assume the total reward a user receives is the convex combination of the five rewards listed in Table. \ref{tbl:satisfactions}. Let $f_t=(f_t^1,f_t^2,f_t^3,f_t^4,f_t^5)$ be the rewards the user received at time $t$, we have the total reward the user receives at time $t$ $$r_t=\phi^Tf_t,$$ 
@@ -169,6 +228,13 @@ Q^i(s,a)=\mathbf{E}[\sum_{t^\prime\geq t}\gamma^{t^\prime-t}r^i_{t^\prime} | s_{
 \end{equation}
 is the action-value function, when the user only takes the $r^i$ into account and ignores all four other kinds of satisfactions. The LP formulated above is equavalent to minimizing Eq. \eqref{eqn:slack} because by definition we have $Q^*(s,a)=\phi^TQ(s,a)$
 
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figs/workflow.png}
+  \caption{Workflow to recovery the underlying reward mechanism using RL and IRL.}
+  \label{fig:workflow}
+\end{figure*}
+
 \subsection{Action-Value Function Approximation}
 
 To solve LP \eqref{eqn:lp} it suffices to estimate $Q^i(s,a)$. As the number of feasible states $s$ could be arbitrary large, for an user in WoW, it's impossible to enumerate over the state space. Instead, we use deep-Q networks (DQN) \cite{mnih2015human} to approximate the $Q^i$ functions. The neural network takes $s$ as input, and output the $Q$ value for every action $a$. We use the same network architecture for $i=1,\dots,5$, illustrated in Fig. \ref{fig:arch}. The categorical elements in $s$ are firstly processed by an embedding layer \cite{mikolov2013distributed}, while the numeral elements are fed into an fully connected (FC) layer with rectifier non-linearity. The output of embedding layer and FC layer are then concatenated and fed into another FC layer with rectifier nonlinearity. A final FC layer is applied to compute the $Q(s,a)$ value for each action $a$.
@@ -189,6 +255,13 @@ We take advantage of the algorithm introduced in \cite{}, that the target networ
 $$\frac{\partial L}{\partial \theta^i} = \mathbb{E}\left[ (Q^i(s_t,a_t)- r_{t} + \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime | \theta^{i -}))\cdot \frac{\partial{Q^i(s_t,a_t)}}{\partial{\theta^i}}\right],$$
 where $\theta^{i-}$ is the network parameter which is assigned current $\theta^i$ value periodically during training.
 
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figs/architecture.png}
+  \caption{DQN architecture for $Q^i$ training, $i=1, \dots,5$}
+  \label{fig:architecture}
+\end{figure*}
+
 \subsection{Agreement Between $Q^1$ and Advancing Behaviors}
 
 We conduct a quantitative evaluation of our learned $Q^1$ network. Consider collecting experience and getting level up is one of the major objective for players, we evaluate if the actions predicted by $Q^1$ agree with the moves conducted by those advancing players (who level up quickly). At state $s$, the predicted action is the one with the largest action-value $Q^1(s,a)$, i.e.,
@@ -203,6 +276,14 @@ Different from previous approaches on Atari games \cite{mnih2015human} and zero-
 
 Armed with the model we conduct three different kinds further studies on WoWAH dataset. First we show that our model better describes the user behavior, than those who takes only single satisfaction metric. After recovering the underlying reward mechanism of the environment, our model could predict the move of the users, instead of just suggesting the best move for advancing (as $Q^1$ does). We then show the divergence of the underlying reward machenism between different groups of people, which is the causality driving the divergence of user behaviors. For example as the level of a player becomes higher, it tends to cares more about relationship than advancement. Finally we show, using our model, the evolution of underlying user satisfaction over time. Especially, observing the dynamics around the release of patch \textit{Fall of the Lich King}\footnote{http://wowwiki.wikia.com/wiki/Patch\_3.3.0}, it shed some light on quantitative models of the game design.
 
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/results.jpg}
+    \caption{Workflow to generate our results}
+    \label{fig:results}
+\end{figure}
+
+
 \subsection{Predicting the Users' Behavior}
 
 game
@@ -213,11 +294,12 @@ Armed with the reward machenism we are able to model users' behavior instead of 
 
 Another interesting observation is the tradeoff between exploitation and exploration. In fact, many users' actions are sub-optimal, in the sense that they care too much about the satisfaction in the near future.
 
-\subsection{Behavior Divergence between Different Groups of User}
-
 \subsection{Behavior Evolution over Time}
 
 The way the user 
+
+\subsection{Behavior Divergence between Different Groups of User}
+
 
 \bibliographystyle{sigchi}
 \bibliography{refs}
