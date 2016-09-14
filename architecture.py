@@ -24,14 +24,15 @@ def logging_config(name=None, file_level=logging.DEBUG, console_level=logging.DE
     logpath = os.path.join(folder, name + ".log")
     print("All Logs will be saved to", logpath)
     logging.root.setLevel(file_level)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    console_formatter = logging.Formatter('%(message)s')
     logfile = logging.FileHandler(logpath)
     logfile.setLevel(file_level)
-    logfile.setFormatter(formatter)
+    logfile.setFormatter(file_formatter)
     logging.root.addHandler(logfile)
     logconsole = logging.StreamHandler()
     logconsole.setLevel(console_level)
-    logconsole.setFormatter(formatter)
+    logconsole.setFormatter(console_formatter)
     logging.root.addHandler(logconsole)
 
 def rmsprop(loss_or_grads, params, learning_rate, rho, epsilon):

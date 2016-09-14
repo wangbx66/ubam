@@ -186,36 +186,54 @@ As applying IRL on users' behavior log could help the developers understand the 
 
 \section{Method}
 
-\subsection{Dataset Description}
+\subsection{Dataset Description and Reinforcement Learning Formulation}
 
-To model the user behavior, we treat user as the agent who conduct an action every 10 minutes; during the 10-minute interval, the user decide the zone to stay in the next interval. If the user has been in multiple zones in a single interval, only the zone with longest stay duration was recorded. The actions are represented by zone IDs, ranging from 0 to 164, corresponding to 165 zones existing during Jan 2006 to Jan 2009 in WoW. When counting the index of interval, we ignore those minutes that the user's offline.
+We use World of Warcraft Avatar History (WoWAH) dataset \cite{lee2011world}, collected from realm \textit{TW-Light's Hope} during 1st Jan 2006 to 10th Jan 2009. 
+It contains 70,055 users after we filtering out those with too short playing history, each with 516.21 time intervals (5162.1 minutes) spent online on average.
+During each of the 10-minute interval, the user's location, in terms of zone ID (ranging from 1 to 165), was recorded.
+The players' trajectories was composed of a sequence of locations, which reflect their playing strategies.
+We find datasets with coarse-grain records, i.e. 10-minute interval, most suitable to model user behaviors. 
+They are preferred than those with interval of a few seconds, which instead focus on game tactics and user mobility \cite{Bell2013a,shen2014characterization}.
+Moreover, the dataset contains many different kinds of users: both novice and expert, guild members and isolated players, low-level and high-level players etc. with their respect class, and race in game. 
+The detailed attributes are listed in Table~ref{tbl:wowah}.
 
-We use World of Warcraft Avatar History (WoWAH) dataset \cite{lee2011world}, a dataset collected from realm \textit{TW-Light's Hope} during 1st Jan 2006 and 10th Jan 2009, containing 70,055 users after we filtering out those with too short playing history. Each user has spent 440.4 time intervals online on average. The dataset contains many different kinds of users: both novice and expert, guild members and isolated players, low-level and high-level players etc., with their respect class, and race in game. The detailed attributes are listed in Table~ref{tbl:attributes}.
+In a reinforcement learning perspective, we treat an user as the agent who conduct an action every time interval.
+An action here corresponds to a zone transaction or staying in the current zone. 
+The user receives current stats of its profile as the observation, after each action it has conducted.
+The observation includes all the attributes recorded in the dataset, after a pre-processing to reduce the redundancy.
+To make the data consistent, we ignore the time intervals where a user being offline, and concatenate multiple game session of a player to build the trajectory.
+As the exact reward mechanism remains unknown, the RL policy can only be learned after the reward function is properly modeled.
 
-During the gameplay the user is able to observe its current game states, including all the attributes recorded in the dataset. We construct the observation vector of the agent using the sequence of attributes extracted from its game plays in the most recent session (since the lastest log on). Instead of using the raw, concatenated vector of those attributes, we employ a preprocess to reduce the redundency, and make those decisive information more explicitly shown to the agent.
-
-To model the user's behavior in a reinforcement learning perspective, we define the reward function which the agent tries to optimize during the gameplay. The reward is separated into five parts $r_1,\cdots r_5$, corresponding to five different kind of satisfactions defined in \cite{yee2006motivations}. The construction of $r_1,\cdots r_5$ are illustrated in Table \ref{tbl:satisfactions}. The value of different kinds of satisfactions are normalized into the same scale.
-% \vspace{1cm}
+We process some preparation for the reward modeling. 
+Borrowing the result in game motivation analysis \cite{yee2006motivations}, we define and compute different of satisfactions using the WoWAH dataset.
+The constructions of $f_1,\dots, f_5$ are illustrated in Table \ref{tbl:satisfactions}, which are able to be calculated from the observations the user receives.
+With those value, we assume the reward function which the agent tries to optimize during the game play, is associated with the five different dimensions of satisfactions. 
+We further address the relation between the reward function, and the satisfactions.
+Note the value of $f_1,\dots, f_5$ are normalized into the same scale.
 
 \begin{table}
-\caption{Different types of satisfactions}
+\caption{Different types of satisfactions (Sat.), and their corresponding categories}
 %\begin{tabular}{llp{4.8cm}}
 \begin{tabularx}{\textwidth}{lX}
     Sat. & \textbf{Category} \& Definition \\
     \midrule
-    $f^1$ & \textbf{Advancement} The speed the user collecting experience and leveling up in game. It's the most common reward a user could receive \\
-    $f^2$ & \textbf{Competition} The satisfaction the user get by joining battleground or arena and competing with human opponents \\
-    $f^3$ & \textbf{Relationship} The long-term relationship with the user's guild, which is quantified by the time elapse since the user join its guild \\
-    $f^4$ & \textbf{Teamwork} The satisfaction the user get by playing in a zone which is featured by teamwork, e.g. Battleground, Arena, Dungeon, Raid, or a zone controlled by The Alliance. \\
-    $f^5$ & \textbf{Escapism} Escapism begins to cumulate if the user has been online for 4 hours or has been regularly login to the game for 20 days.
+    $f^1$ & \textbf{Advancement} The speed the user collecting experience and leveling up in game. It's the most common satisfaction a user could receive. \\
+    $f^2$ & \textbf{Competition} The satisfaction the user get by joining battleground or arena and competing with human opponents. \\
+    $f^3$ & \textbf{Relationship} The long-term relationship with the user's guild, which is quantified by the time elapse since the user joining its guild. \\
+    $f^4$ & \textbf{Teamwork} The satisfaction the user get by playing in a zone which is featured by teamwork, e.g. \textit{Battleground}, \textit{Arena}, \textit{Dungeon}, \textit{Raid}, or a zone controlled by \textit{The Alliance}. \\
+    $f^5$ & \textbf{Escapism} Escapism begins to accumulate if the user has been online for a long session or has been regularly login to the game for many days.
     \label{tbl:satisfactions}
 \end{tabularx}
 \end{table}
 
+\subsection{Reward Mechanism Modeling}
 
-\subsection{Reward Recovery}
-
-We apply apprenticeship via inverse reinforcement learning, in order to recover the underlying reward mechanism of the players, using the trajectory $\tau$ of a user (or a group of users). Assume the total reward a user receives is the convex combination of the five rewards listed in Table. \ref{tbl:satisfactions}. Let $f_t=(f_t^1,f_t^2,f_t^3,f_t^4,f_t^5)$ be the rewards the user received at time $t$, we have the total reward the user receives at time $t$ $$r_t=\phi^Tf_t,$$ 
+We introduce our algorithm to recover the underlying reward mechanism of the players, using the trajectory $\tau$ of a user or a group of users. 
+Assume the reward a user receives is the convex combination of the five kinds of satisfactions listed in Table. \ref{tbl:satisfactions}. 
+Let $f_t=(f_t^1,f_t^2,f_t^3,f_t^4,f_t^5)$ be the vector of satisfactions the user received at time $t$, we have the total reward the user receives at time $t$ 
+\begin{equation*}
+r_t=\phi^Tf_t,
+\end{equation*}
 where $\phi$ is the combination weight with $||\phi||_1=1, \; \phi \geq 0$. Assume at each time step, the user tries to take an action $a$ according to the current game state so as to maximize the best expected cumulative discounted (with discount $\gamma$ over time) reward (known as the action-value function) $Q^\ast(s, a)$, where
 $$Q^\ast(s,a)=\mathbf{E}[R_t | s_{t}=s, a_{t}=a | \pi^\ast]$$
 and
@@ -281,7 +299,7 @@ where $\theta^{i-}$ is the network parameter which is assigned current $\theta^i
   \label{fig:architecture}
 \end{figure*}
 
-\subsection{Agreement Between $Q^1$ and Advancing Behaviors}
+\subsection{Policy and User Behaviors}
 
 We conduct a quantitative evaluation of our learned $Q^1$ network. Consider collecting experience and getting level up is one of the major objective for players, we evaluate if the actions predicted by $Q^1$ agree with the moves conducted by those advancing players (who level up quickly). At state $s$, the predicted action is the one with the largest action-value $Q^1(s,a)$, i.e.,
 \begin{equation*}
