@@ -18,7 +18,9 @@
 
 % https://www.overleaf.com/5725947pwvcgh#/18690373/
 
-\title{Achievement, Relationship, and Engagement (ARE): Using Deep Reinforcement Learning to Recover Users' Strategies and Motivations from Massive and Complex Online Game Behavioral Data}
+%Achievement, Relationship, and Engagement (ARE): Using 
+% 
+\title{Deep Reinforcement Learning for Modeling User Strategies and Motivations from Massive Game Behavioral Data}
 
 \numberofauthors{4}
 \author{%
@@ -51,7 +53,7 @@ Understanding their behaviors and the underlying motivations is of great interes
 We employ deep reinforcement learning algorithm to model users' playing strategies, and propose an inverse reinforcement learning algorithm to model their motivations. 
 We use a massive and complex online game behavioral dataset, World of Warcraft Avatar History (WoWAH), which records over 70,000 users' log data spanning 3 years time period. 
 Our trained model not only can predict users' behaviors with a high level of accuracy. 
-Moreover, it can also reveal users' motivation level changes in terms of \textit{Achievement}, \textit{Relation}, and \textit{Engagement}. 
+Moreover, it can also reveal users' motivation dynamics in terms of \textit{achievement}, \textit{social}, and \textit{immersion}. 
 
 \category{H.5.m}{Information Interfaces and Presentation (e.g. HCI)}{Miscellaneous} \category{I.2.1}{Artificial Intelligence}{Applications and Expert Systems}
 \keywords{Online game motivation; game design; reinforcement learning; apprenticeship learning;}
@@ -62,6 +64,20 @@ Understanding Massively multiplayer online role-playing game (MMORPG) games sati
 As human players have a mixed feeling from different perceptions and they act not for a concrete, explicit objective such as winning an episode or taking high scores. 
 While it's plausible to build a gaming bot from the player log data, to advance in the game, it ignores other dimensions of motivation which the players also care about. 
 The game designers and researchers, also parents and educators, are, however, keen to reveal the underlying mechanism instead of just mastering the game.
+
+\begin{table}[t]
+    \centering
+    \caption{WoWAH Dataset Attributes}
+    \begin{tabularx}{\textwidth}{lX}
+        Attribute & Value \\
+        \midrule
+        Duration & 1107 days \\
+        Sample Interval & Every 10 minutes \\
+        \#Users & 70,000+ \\
+        Locations & One of 165 zones
+        \label{tbl:wowah}
+    \end{tabularx}
+\end{table}
 
 Take World of Warcraft (WoW), which is one of the most successful MMO games in the world, as an example. 
 It's massive, and multiplayer as millions of players pay to subscribe the game platform. 
@@ -92,19 +108,18 @@ The human player and computer are characterized by a pair of agent and environme
 We show an interesting analogy between the traditional user experience model on the left, and the reinforcement learning scheme on the right. 
 In the model, each player is modeled by an agent, whose zone transactions are regarded as the actions of the agent. 
 Instead of manually collect opinions from the players as the feedback, we utilize the actual reward system of the game which provide diverse satisfactions.
-%Existing models in reinforcement learning succeed in modeling human behaviors by training the agent to maximize the explicitly defined reward. 
 A common difficulty in WoW and most of the cases in HCI is that the definition of reward is implicit or partial, e.g. we can't tell if a play is optimal simply by looking at the experience gain credited to this play. 
 Even if some could try building a reward function according to their knowledge of certain environments, it worth to note that figuring out the reward mechanism itself is a valuable task. 
 In fact, the, usually underlying, reward mechanism gives the most succinct description of the task. 
 Especially for the developers of the environment, it's a way to give a quantitative representation of what they have designed.
+%Existing models in reinforcement learning succeed in modeling human behaviors by training the agent to maximize the explicitly defined reward.
 
-%\begin{figure}
-%    \centering
-%    \includegraphics[width=\textwidth]{figs/rl-vs-chi.jpg}
-%    \caption{User experience model (left) and reinforcement learning model (right)}
-%    \label{fig:chi}
-%\end{figure}
-
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/rl-vs-chi.jpg}
+    \caption{User experience model (left) and reinforcement learning model (right)}
+    \label{fig:chi}
+\end{figure}
 
 The process of recovering the reward function is inverse reinforcement learning (IRL). 
 In a data-driven manner, it recovers the underlying reward function which induces the recorded user behaviors, simply by assuming that those players are trying to maximize their rewards. 
@@ -115,18 +130,6 @@ With the recovered reward, we train an agent to best mimic the general user beha
 As our reward recovery algorithm works for any set of trajectories, we conduct future studies to character the dynamics of the game environment thus how design factors working on user behaviors, and compare different groups of users to examine the divergence of game motivations.
 Consistency was observed between our model results and empirical analysis on the game environment. 
 
-\begin{table}
-    \caption{WoWAH Dataset Attributes}
-    \begin{tabularx}{\textwidth}{lX}
-        Attribute & Value \\
-        \midrule
-        Duration & 1107 days \\
-        Sample Interval & Every 10 minutes \\
-        \#Users & 70,000+ \\
-        Locations & One of 165 zones \\
-        \label{tbl:wowah}
-    \end{tabularx}
-\end{table}
 
 \section{Related Work}
 
@@ -138,7 +141,12 @@ In the game environment, players pursue certain kinds of satisfactions they want
 Hence, it's natural to assume a user's behaviors are highly correlated with the user's specific reward mechanism, represented by their demanding satisfactions. 
 And for game designers and research, finding the demanding satisfactions of users could yield better understanding of the game, and ease to serve the users with better experience. 
 
-Previous study categories the satisfactions into three major aspects, namely, achievement satisfactions, social satisfactions, and immersion satisfactions. It was then divided into ten subcategories, briefed in Table. \ref{tbl:components}. More detailes are introduced in \cite{yee2006motivations} and \cite{yee2006demographics}. The weights associated with these ten kinds of satisfactions basically chartered a user's profile, and it would be very meaningful the weights can be recovered in a purely data-driven process, based on the user's playing history.
+Previous study categories the satisfactions into three major aspects, namely, achievement satisfactions, social satisfactions, and immersion satisfactions \cite{yee2006motivations}. 
+It was then divided into ten subcategories, briefed in Table. \ref{tbl:components}. 
+More details are provided in the original paper and the author's another paper about MMORPG motivation \cite{yee2006demographics}. 
+The satisfaction model is popular in online game researches, and provide some basic understand of the online game motivation.
+However, the weights associated with these ten kinds of satisfactions are still unknown. 
+As the weights basically depicts a user's profile, it would be very meaningful if they can be recovered in a purely data-driven process, i.e. based on the user's playing history.
 
 \begin{table}
 \caption{Components of game motivation}
@@ -147,22 +155,34 @@ Previous study categories the satisfactions into three major aspects, namely, ac
     \midrule
     Achievement & Advancement, Mechanics, Competition \\
     Social & Socializing, Relationship, Teamwork \\
-    Immersion & Discovery, Role Playing, Customization, Escapism \\
+    Immersion & Discovery, Role Playing, Customization, Escapism
     \label{tbl:components}
 \end{tabularx}
 \end{table}
 
-\subsection{Player Profile Study}
+\subsection{Player Behavior Analysis in Online Games}
 
 
 
-\subsection{Reinforcement Learning and Apprenticeship learning}
+\subsection{Reinforcement Learning and Inverse Reinforcement learning}
 
-Reinforcement learning (RL), especially deep reinforcement learning (DRL), is an [] domain  inspired by behaviorist psychology. In RL, the agent performs in an online environment (in which the agent conducts a sequence of actions and get a reward for each of its actions) and evolves itself from the pains and pleasures it received from its previous actions. In the environment the agent has to deal with the tradeoff between exploration and exploitation, which presents in many real life situations. For example, to level up quickly in a game in a long-term perspective, the player has to conduct some preparation work which does not benefit its leveling up in the near future.
+Reinforcement learning (RL), especially deep reinforcement learning (DRL), is an emerging domain inspired by behaviorist psychology. 
+In RL, the agent performs in an online environment and conducts a sequence of actions.
+Instead of being taught of the correct policy, the agent get a reward for each of its actions and evolves itself from its own pains and pleasures. 
+Interestingly, it deals with the common trade-off between exploration and exploitation, which presents in many real life situations. 
+Success in maximizing cumulative reward in the future, rather than exploiting current reward, could lead to expert level game play, which is also a intrinsic property of expert human players.
+For example, to level up quickly in a game in a long-term perspective, the player has to conduct some preparation works which does not necessarily benefit its leveling up in the near future.
 
-RL is able formulate many online problems to model users' behavior. For example, the trained agent conducts superior play compared with professional human in the game of Go \cite{silver2016mastering}, Atari 2600 \cite{mnih2015human}, and Poker \cite{heinrich2016deep}. Also used to model users' clickings and browsings for online shopping websites, and how users behaves in many optimal control problems etc. (Note: I want an example more related to wowah). It's worth to note that recent advancement of DRL makes it possible to handle complex environment with high-dimension observation and state spaces, making it possible to model a wide variety of real-life problems.
+RL is able to formulate many problems in user behaviors analysis and modeling. 
+For example, the recent advances in RL conduct superior play compared with professional human players in the game of Go \cite{silver2016mastering}, Atari 2600 \cite{mnih2015human}, and Poker \cite{heinrich2016deep}. 
+It's also employed to model users' clicking and browsing behaviors for online shopping websites, and robotics and optimal controls.  It's worth to note that DRL makes it possible to handle complex environment with high-dimension observation spaces, making it possible to model a wide range of problems such as WoW user behavior analysis.
 
-In most cases of user behavior analysis and modeling, the reward scheme of the environment is not explicitly given. For example, the user experience of a software or a online game is the combination of different kinds of satisfication. Instead, apprenticeship learning \cite{ratliff2006maximum,abbeel2004apprenticeship,ng2000algorithms}, also known as apprenticeship via inverse reinforcement learning (AIRP), tries to recover the underlying reward function using the observed behavior of the agent, e.g. the trajectories of players in a online game. Applying AIRP on users' behavior log could help the developers understand the intention of the user, the divergence between different group of users, and the dynamic of user profiles. 
+A great challenge is that the reward scheme of the environment is not explicitly given in most problems in user behavior analysis and modeling. 
+For example, the user experience of a software or an online game is the combination of different kinds of satisfaction, processed by the human brains.
+In some of those cases, inverse reinforcement learning (IRL) \cite{ratliff2006maximum,ng2000algorithms} recovers the underlying reward function, using the recorded actions of the users.
+Further applying apprenticeship learning algorithms \cite{abbeel2004apprenticeship} could mimic the policy that was used to generated the recorded data.
+But to invoke those IRL algorithms, it usually requires the access of the dynamic of the environment, which is not doable in online gaming analysis. 
+As applying IRL on users' behavior log could help the developers understand the intention of the user, New IRL algorithms are needed to be designed to comply with the problem without the access to the dynamics.
 
 \section{Method}
 
@@ -187,11 +207,10 @@ To model the user's behavior in a reinforcement learning perspective, we define 
     $f^2$ & \textbf{Competition} The satisfaction the user get by joining battleground or arena and competing with human opponents \\
     $f^3$ & \textbf{Relationship} The long-term relationship with the user's guild, which is quantified by the time elapse since the user join its guild \\
     $f^4$ & \textbf{Teamwork} The satisfaction the user get by playing in a zone which is featured by teamwork, e.g. Battleground, Arena, Dungeon, Raid, or a zone controlled by The Alliance. \\
-    $f^5$ & \textbf{Escapism} Escapism begins to cumulate if the user has been online for 4 hours or has been regularly login to the game for 20 days. \\
+    $f^5$ & \textbf{Escapism} Escapism begins to cumulate if the user has been online for 4 hours or has been regularly login to the game for 20 days.
     \label{tbl:satisfactions}
 \end{tabularx}
 \end{table}
-
 
 
 \subsection{Reward Recovery}
@@ -286,11 +305,10 @@ Armed with the model we conduct three different kinds further studies on WoWAH d
 
 \subsection{Predicting the Users' Behavior}
 
-game
+explain different game play styles
 
-
-
-Armed with the reward machenism we are able to model users' behavior instead of creating an agent to play the game itself. Consider that the users' motivation of gameplay is more than leveling up, 
+Armed with the reward mechanism we are able to model users' behavior instead of creating an agent to play the game itself. 
+Consider that the users' motivation of playing is more than leveling up, 
 
 Another interesting observation is the tradeoff between exploitation and exploration. In fact, many users' actions are sub-optimal, in the sense that they care too much about the satisfaction in the near future.
 
