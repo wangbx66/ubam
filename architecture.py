@@ -284,13 +284,16 @@ if __name__ == '__main__':
     # actions_hat = TT.argmax(q_vals, axis=1)
     q_func = theano.function(inputs=[states], outputs=q_vals)
 
+    predict_history = np.zeros((test_batch, batch_size))
+
     for epoch in range(20000):
         total_loss = 0
-        total_speed = 0    
+        total_speed = 0
         hits = 0
         stays = 0
         predict_stays = 0
-        predict_histo = [0] * 165
+        keeps = 0
+        predict_histogram = [0] * 165
         for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
             action_star = major(action, skip_frames, batch_size)
 
@@ -310,21 +313,24 @@ if __name__ == '__main__':
                 q_hat = q_func(context[:, :-skip_frames])
                 last = context[:,-(skip_frames+1),3,:].flatten()
                 actions_hat = np.argmax(q_hat * candidates, axis=1)
+                keeps += (actions_hat == predict_history[idx-(num_batch-test_batch)]).sum()
+                predict_history[idx-(num_batch-test_batch)] = actions_hat
                 hits += (actions_hat == action_star).sum()
                 stays += (last == action_star).sum()
                 predict_stays += (last == actions_hat).sum()
                 for action in actions_hat:
-                    predict_histo[action] += 1
+                    predict_histogram[action] += 1
                 #print(actions_hat, action_star)
                 #print(hits)
         
         accuracy = hits / (batch_size * test_batch)
         stick = stays / (batch_size * test_batch)
         predict_stick = predict_stays / (batch_size * test_batch)
-        dominate_rate = max(predict_histo) / (batch_size * test_batch)
-        logging.info('epoch #{3}: loss={0}, speed={1}, accuracy={2}, unary={4}/~60%, dominate={5}'.format(total_loss, total_speed, accuracy, epoch+1, predict_stick, dominate_rate))
+        dominate_rate = max(predict_histogram) / (batch_size * test_batch)
+        keep_rate = keeps / (batch_size * test_batch)
+        logging.info('epoch #{3}: loss={0}, spd={1}, acc={2}, unary={4}/~60%, dmt={5}, keep={6}'.format(total_loss, total_speed, accuracy, epoch+1, predict_stick, dominate_rate, keep_rate))
         #print('stay rate = {0}, unary rate = {1}'.format(stick, predict_stick))
-        logging.info(str(np.argmax(q_hat, axis=1)))
+        #logging.info(str(np.argmax(q_hat, axis=1)))
         network = lasagne.layers.get_all_param_values(l_out)
         netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch+1, accuracy), 'wb')
         pickle.dump(network, netfile)
