@@ -48,12 +48,14 @@
 
 \abstract
 
-Massively multiplayer online role-playing game (MMORPG), such as World of Warcraft (WoW), attracts millions of users and many of them spend thousands of hours playing games online.
-Understanding their behaviors and the underlying motivations is of great interests to game designers and researchers, and also to parents and educators.
-We employ deep reinforcement learning algorithm to model users' playing strategies, and propose an inverse reinforcement learning algorithm to model their motivations.
-We use a massive and complex online game behavioral dataset, World of Warcraft Avatar History (WoWAH), which records over 70,000 users' log data spanning 3 years time period.
-Our trained model not only can predict users' behaviors with a high level of accuracy.
-Moreover, it can also reveal users' motivation dynamics in terms of \textit{achievement}, \textit{social}, and \textit{immersion}.
+
+Game user research, which investigates interactions between players and games, is one of the most popular topics in HCI field. However, previous studies are mostly exploratory and descriptive, failing to capture the richness and complexity of game user behaviors. Inspired by recent success of reinforcement learning (RL) algorithm in game strategies, we present a novel RL method to model the underlying motivations which induces the user behaviors we observed. It further reveals the playing strategies which is used to predict user behaviors. We use a massive and complex online game behavioral dataset, World of Warcraft Avatar History (WoWAH), which records over 70,000 users' log data spanning 3 years time period. Our model not only can predict users' behaviors with a high level of accuracy. Moreover, it can also reveal users' motivation dynamics, in terms of \textit{achievement}, \textit{social}, and \textit{immersion}.
+%Massively multiplayer online role-playing game (MMORPG), such as World of Warcraft (WoW), attracts millions of users and many of them spend thousands of hours playing games online.
+%Understanding their behaviors and the underlying motivations is of great interests to game designers and researchers, and also to parents and educators.
+%We employ deep reinforcement learning algorithm to model users' playing strategies, and propose an inverse reinforcement learning algorithm to model their motivations.
+%We use a massive and complex online game behavioral dataset, World of Warcraft Avatar History (WoWAH), which records over 70,000 users' log data spanning 3 years time period.
+%Our trained model not only can predict users' behaviors with a high level of accuracy.
+%Moreover, it can also reveal users' motivation dynamics in terms of \textit{achievement}, \textit{social}, and \textit{immersion}.
 
 \category{H.5.m}{Information Interfaces and Presentation (e.g. HCI)}{Miscellaneous} \category{I.2.1}{Artificial Intelligence}{Applications and Expert Systems}
 \keywords{Online game motivation; game design; reinforcement learning; apprenticeship learning;}
@@ -287,7 +289,7 @@ As LP can be solved efficiently, it suffices to estimate $Q^i(s,a)$.
 As the number of possible states $s$ could be arbitrary large for an user in WoW, it's impossible to enumerate over the state space as typical Markov Decision Process (MDP) does.
 Instead, we build deep-Q networks (DQN) \cite{mnih2015human} to approximate the $Q^i$ functions.
 The network takes the observation as input which is used to represent the state $s$, and output the $Q$ value for every action $a$.
-Taking advantage of the fact that DQN is a general framework in term of the environment, we use the same network architecture for $i=1,\dots,5$, as illustrated in Fig. \ref{fig:architecture}. 
+Taking advantage of the fact that DQN is a general framework for multiple environments, we use the same network architecture for $i=1,\dots,5$ as illustrated in Fig. \ref{fig:architecture}. 
 The categorical elements in $s$ are firstly processed by an embedding layer \cite{mikolov2013distributed}, while the numeral elements are fed into an fully connected (FC) layer with rectifier non-linearity. 
 The output of embedding layer and FC layer are then concatenated and fed into another FC layer with rectifier non-linearity. 
 A final FC layer is applied to compute the $Q(s,a)$ value for each action $a\in\cup_s\mathcal{A}(s)$.
@@ -307,8 +309,8 @@ Since $L^i$ is differentiable with respect to $\theta^i$, $\theta^i$ can be upda
 \theta^i \leftarrow \theta^i - \alpha\frac{\partial L}{\partial \theta^i}\Big|_{s_t, a_t, f_t^i, s_{t+1}}
 \end{eqnarray*}
 Different from the algorithm introduced in \cite{mnih2015human}, that the target network $Q(s_{t+1}, a^\prime)$ only get updated periodically, we put vanilla different of $L^i$. 
-This is because we're using log data, where we can easily sample from the data and avoid the instability caused by the correlation between consecutive frames.
-The derivative of $L$ with respective $\theta^i$ is
+This is because when using log data, we can easily sample from the dataset randomly and the instability of DQN caused by the correlation between consecutive frames can be avoided.
+The derivative of $L$ with respective $\theta^i$ is then
 \begin{equation*}
 \begin{aligned}
 \frac{\partial L}{\partial \theta^i} = & \mathbb{E}\Big[ (Q^i(s_t,a_t)- f_t^i - \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime)) \\
@@ -327,11 +329,21 @@ where $a^\ast$ is the action which maximizes $Q^i(s_{t+1},a)$.
 
 \subsection{Policy and User Behaviors}
 
-We conduct a quantitative evaluation of our learned $Q^1$ network. Consider collecting experience and getting level up is one of the major objective for players, we evaluate if the actions predicted by $Q^1$ agree with the moves conducted by those advancing players (who level up quickly). At state $s$, the predicted action is the one with the largest action-value $Q^1(s,a)$, i.e.,
+Solving LP \eqref{eqn:lp}, the action-value function $Q^\ast(s,a)$ over the underlying mechanism is known for the user/users who conducted trajectories $\tau$.
+As assumed by the definition of $Q^\ast(s,a)$, player pursuing cumulative reward $R_t$ should follow the action $a^\prime$ which leads to largest $Q^\ast(s,a^\prime)$.
+Which induces the policy
 \begin{equation*}
-a = \text{argmax}_{a^\prime}Q^1(s,a^\prime).
+\pi^\ast(s) = \text{argmax}_{a^\prime}Q^\ast(s,a^\prime).
 \end{equation*}
-For the $(s,a)$ pairs extracted from the top 200 (in leveling up speed) players' trajectories, the prediction accuracy is 0.49 with the total number of feasible actions $|\cup_s\mathcal{A}(s)|=156$, corresponding to 156 different zones in WoW existed during Jan 2006 - Jan 2009. It's competitive with 0.53, using policy cloning \cite{amit2002parametric,sammut1992learning} with classifier, and overperforms 0.23 if we approximate the $Q$ function using linear function. The quality of $Q^1$ is decent.
+Although $\pi^\ast(s)$ may not be the one who advances fastest in game (which should instead be $\pi^1(s) = \text{argmax}_{a^\prime}Q^1(s,a^\prime)$), it is able to mimic the actions that in general a player would conduct. 
+That is, the policy $\pi^\ast(s)$ can be used to predict the action of users, even when they are under mixed and complex reward mechanism.
+
+Using similar idea, during the training of $Q^1$ network, we evaluate the quality of the Q-learning process.
+Consider collecting experience and getting level up is one of the major objective for players, we evaluate if the actions predicted by $Q^1$ agree with the moves conducted by those who level up quickly. 
+For the $(s,a)$ pairs extracted from the top 200 (in leveling up speed) players' trajectories, we try to find if $a$ matches $\pi^1(s)$. 
+The prediction accuracy is 0.49 with the total number of feasible actions $|\cup_s\mathcal{A}(s)|=165$, corresponding to 165 different zones in WoW existed during Jan 2006 - Jan 2009. 
+It's competitive with 0.53, using policy cloning \cite{amit2002parametric,sammut1992learning} with classifier, and outperforms 0.23 if we approximate the $Q$ function using linear function. 
+We conclude the quality of $Q^1$ is decent.
 
 \section{Results}
 
