@@ -363,7 +363,7 @@ After modeling the underlying reward mechanism of the environment, we predict th
 The prediction made by our model is more consistent and accurate than any other trial does.
 We then show, using our model, the dynamic of underlying user motivation over time. 
 As the motivation system adapts itself over time, WoW adjusts its reward system to make the game more popular.
-Especially, observing the dynamics around the release of patch \textit{Fall of the Lich King}\footnote{http://wowwiki.wikia.com/wiki/Patch\_3.3.0}, it shed some light on how game designs would affect the environment in a quantitative way.
+Especially, observing the dynamics around the release of patch \textit{Wraith of the Lich King}\footnote{http://us.battle.net/wow/en/game/patch-notes/3-0}, it shed some light on how game designs would affect the environment in a quantitative way.
 Finally we show the divergence of the underlying reward mechanism between different groups of people. 
 One of our analysis matches with the common knowledge, that a player cares more about their \textit{social} than their \textit{achievement} as she/he get more involved into the game.
 It make sense to imagine a newcomer spend every minutes collecting experience in order to reach the next plume of golden light for leveling up, meanwhile a veteran sunk in the joy of raiding and chatting with friends.
@@ -433,13 +433,32 @@ This example would provide a future direction of our work, that to model user be
     \label{fig:trajectory}
 \end{figure}
 
-\subsection{Behavior Evolution over Time}
+\subsection{Dynamics of Play Motivation}
 
-The way the user 
+The motivation of play could evolve over time, also subject to change as the game gets updated.
+Especially, how an update will affect the users' motivation thus users' behavior would be great interest of game designers.
+We conduct an analysis on the dynamics of play motivation, i.e. how the underlying reward mechanism changes over time.
+The key observation of achieving this is that the set $\tau$ in LP \eqref{eqn:lp} could contain arbitrary piece of trajectories.
+Randomly drawing $(s_t,a_t)$ from the dataset where $t$ is restricted to certain time range, would yield a $\tau$ which witness the play motivation of that time range.
+Taking the time range chronologically, we show the evolution of play motivation, characterized by the elements in $\phi$.
+Fig. \ref{fig:trend} illustrates the trend of \textit{advancement}, \textit{competition}, \textit{relationship}, \textit{teamwork}, \textit{escapism}.
+Note that at any time the weights of those elements sum to 1.
 
-\subsection{Behavior Divergence between Different Groups of User}
+It's firstly observed the dramatic increase on advancement and competition, during the mid-to-late period of the graph.
+It happens at about the 150000th time period, which correspond to Nov 2008, the release of patch \textit{Wraith of the Lich King}.
+
+
+\subsection{Behavior Divergence between Different Groups of Users}
+
+Does players with high level must be caring about leveling up?
+Nope, though, they may used to be.
+Analysis in Fig. \ref{fig:spider} shows that players with level 50 or higher focus 50\% less on their advancement, than those with level 49 or lower.
+We also notice that with the increase of level, players participate less in competition than before, instead maintain a long term relationship with friends and guild members.
 
 \section{Conclusive Discussion and Future Works}
+
+We propose a novel RL method which models the motivation of game play.
+In a data-driven manner, our proposed approach unveils the underlying reward mechanism, which
 
 future: customization
 future: user
