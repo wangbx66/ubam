@@ -164,7 +164,9 @@ As the weights basically depicts a user's profile, it would be very meaningful i
 
 \subsection{Player Behavior Analysis in Online Games}
 
+In Game User Research Methods, there are many methods used to evaluate \textit{playability and usability} of games. \textit{Think Aloud Protocol}, \textit{Retrospective Testing}, \textit{Heuristic Evaluation} and \textit{Physiology-based Playtesting} are five qualitative research methods \cite{desurvire2013methods}. Fast and efficiency are the most valuable results of those methods bring to us. However, it cannot learn all users' motivations in the games \cite{kivikangas2011review}. Moreover, it is difficult for researchers to evaluate the results based on the qualitative psychology model. For instance, \textit{Heuristic Evaluation} is the method used in small expert player group and it only gets result from expert feedback. However, in large game different motivations are driven by different kinds of users. Thus it is not possible to that to present all users' ideas \cite{desurvire2013methods}.
 
+Despite those qualitative user research methods, \textit{Frequency Data Analysis}, \textit{A/B Testing} and \textit{Experimental Factorial Design} are the most common quantitative user testing methods \cite{el2013game}.  \textit{Frequency Data Analysis}, which previously used in WoWAH dataset \cite{Bell2013a}, is more based on factorial type and time series statistic method. It can only evaluate single variables in the model. However, for some complex games, the players behaviors and motivations are not just one, sometimes, the motivations are multiple and even mixed. It causes difficulties for researchers to use linear handcraft model to formulate user behavior. In order to get better understand about multi-users' behavioral, we then introduce Reinforcement Learning, one theory in machine learning inspired by behavioral psychology, into game user research field.
 
 \subsection{Reinforcement Learning and Inverse Reinforcement learning}
 
@@ -453,15 +455,27 @@ It happens at about the 150000th time period, which correspond to Nov 2008, the 
 Does players with high level must be caring about leveling up?
 Nope, though, they may used to be.
 Analysis in Fig. \ref{fig:spider} shows that players with level 50 or higher focus 50\% less on their advancement, than those with level 49 or lower.
-We also notice that with the increase of level, players participate less in competition than before, instead maintain a long term relationship with friends and guild members.
+We also notice that with the increase of level, players participate less in competition than before, instead they maintain a long term relationship with friends and guild members fighting against computer controlled characters.
+
 
 \section{Conclusive Discussion and Future Works}
 
 We propose a novel RL method which models the motivation of game play.
-In a data-driven manner, our proposed approach unveils the underlying reward mechanism, which
+In a data-driven manner, our proposed approach unveils the underlying reward mechanism, which is the driver beneath the user behaviors.
+The reward function, meanwhile, serves as the most succinct description of the objective of the players.
+We utilize our motivation modeling, to predict the user behaviors with high level of accuracy.
+The prediction performance surpass both the model with biased estimation of reward function, or the legacy approach using behavioral cloning.
+Further analysis finds agreement between common knowledge as well as game design knowledge, and the our results, on motivation divergences and motivation dynamics.
+Our work is as far as we know the first to model user motivation or reward mechanism in a RL perspective, which provides scientific, accurate and data-driven approaches for game user research.
 
-future: customization
-future: user
+We shed some light on future research topics.
+The first valuable improvement could be made on considering the weakness of players, which address the existence of sub-optimality in players' actions.
+As the sub-optimality is the other reason causing divergence in user behaviors, apart from motivation.
+Another future work is about the approximation of the reward function.
+In this paper it is characterized by a convex combination of satisfactions and can be extended to more complex combinations at additional computational cost.
+However, it makes sense to employ more subtle approximation approaches such as deep learning.
+Finally we find that by including more elements, e.g. mounts and professions, into our dataset, the model could utilize more information such the satisfaction brought by customization.
+Especially if the user information such as age, gender, nationality etc. are provided, new model could be built to capture those information which is closely related to targeted marketing.
 
 \bibliographystyle{sigchi}
 \bibliography{refs}
