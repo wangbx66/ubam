@@ -84,7 +84,7 @@ The game designers and researchers, also parents and educators, are, however, ke
 Take World of Warcraft (WoW), which is one of the most successful MMO games in the world, as an example.
 It's massive, and multiplayer as millions of players pay to subscribe the game platform.
 On the platform players can communicate with others, finish some quests cooperatively, compete with each other, and even build their own guilds.
-WoW also provides different kinds of races, careers and optional requests that could serve players extra flexibility to evolve different game styles.
+WoW also provides different kinds of races, careers and optional requests that could serve players with extra flexibility to evolve different game styles.
 With all those features the players' behavior can be very complex, as they receive different dimensions of satisfaction which eventually compose the general reward system of the game.
 %With all those features the players receive many different dimensions of satisfaction which eventually compose the general reward system of the game.
 %It was released by Blizzard in 2004 and stills continuing updating nowadays.
@@ -246,7 +246,8 @@ The term $\pi^\ast$ indicates optimal policy, described by a probabilistic distr
 In this setting, the weight $\phi$ must satisfy that the action the user has taken must induce a larger $Q^\ast$ value than any other valid action would have done.
 This optimality infers that
 \begin{equation}
-Q^\ast(s,a) \geq \max_{a^\prime \in A(s)}Q^\ast(s,a^\prime) \label{eqn:irl}
+Q^\ast(s,a) \geq \max_{a^\prime \in A(s)}Q^\ast(s,a^\prime)
+\label{eqn:irl}
 \end{equation}
 is satisfied for all $(s,a)$ pairs appeared in the user's trajectory.
 Consider the existence of possible sub-optimal actions, we introduce slack variables $\xi_{s,a}$ into the Eq. \eqref{eqn:irl} to make it feasible.
@@ -305,9 +306,10 @@ Q-learning tries to find the action-value function satisfying Eq. \eqref{eqn:bel
 L^i=\mathbb{E}_{s_t, a_t, f_t^i, s_{t+1}} \frac{1}{2}(Q^i(s_t,a_t)- f_t^i - \gamma\max_{a^\prime}Q(s_{t+1}, a^\prime))^2.
 \end{equation*}
 Since $L^i$ is differentiable with respect to $\theta^i$, $\theta^i$ can be updated via stochastic gradient descent, by
-\begin{eqnarray*}
+\begin{eqnarray}
 \theta^i \leftarrow \theta^i - \alpha\frac{\partial L}{\partial \theta^i}\Big|_{s_t, a_t, f_t^i, s_{t+1}}
-\end{eqnarray*}
+\label{eqn:sgd}
+\end{eqnarray}
 Different from the algorithm introduced in \cite{mnih2015human}, that the target network $Q(s_{t+1}, a^\prime)$ only get updated periodically, we put vanilla different of $L^i$. 
 This is because when using log data, we can easily sample from the dataset randomly and the instability of DQN caused by the correlation between consecutive frames can be avoided.
 The derivative of $L$ with respective $\theta^i$ is then
@@ -332,24 +334,40 @@ where $a^\ast$ is the action which maximizes $Q^i(s_{t+1},a)$.
 Solving LP \eqref{eqn:lp}, the action-value function $Q^\ast(s,a)$ over the underlying mechanism is known for the user/users who conducted trajectories $\tau$.
 As assumed by the definition of $Q^\ast(s,a)$, player pursuing cumulative reward $R_t$ should follow the action $a^\prime$ which leads to largest $Q^\ast(s,a^\prime)$.
 Which induces the policy
-\begin{equation*}
+\begin{equation}
 \pi^\ast(s) = \text{argmax}_{a^\prime}Q^\ast(s,a^\prime).
-\end{equation*}
+\label{eqn:policy}
+\end{equation}
 Although $\pi^\ast(s)$ may not be the one who advances fastest in game (which should instead be $\pi^1(s) = \text{argmax}_{a^\prime}Q^1(s,a^\prime)$), it is able to mimic the actions that in general a player would conduct. 
 That is, the policy $\pi^\ast(s)$ can be used to predict the action of users, even when they are under mixed and complex reward mechanism.
 
 Using similar idea, during the training of $Q^1$ network, we evaluate the quality of the Q-learning process.
-Consider collecting experience and getting level up is one of the major objective for players, we evaluate if the actions predicted by $Q^1$ agree with the moves conducted by those who level up quickly. 
-For the $(s,a)$ pairs extracted from the top 200 (in leveling up speed) players' trajectories, we try to find if $a$ matches $\pi^1(s)$. 
-The prediction accuracy is 0.49 with the total number of feasible actions $|\cup_s\mathcal{A}(s)|=165$, corresponding to 165 different zones in WoW existed during Jan 2006 - Jan 2009. 
-It's competitive with 0.53, using policy cloning \cite{amit2002parametric,sammut1992learning} with classifier, and outperforms 0.23 if we approximate the $Q$ function using linear function. 
-We conclude the quality of $Q^1$ is decent.
+Consider collecting experience and getting level up is one of the major objective for players, we examine if the actions predicted by $Q^1$ agree with the moves conducted by those who level up quickly. 
+For the $(s,a)$ pairs extracted from the top 200 (in term of leveling up speed) players' trajectories, we try to find if $a$ matches $\pi^1(s)$. 
+The prediction accuracy is 0.49 which is decent considering the total number of feasible actions $|\cup_s\mathcal{A}(s)|=165$, corresponding to 165 different zones in WoW existed during Jan 2006 - Jan 2009. 
+It's competitive with 0.53, using behavioral cloning \cite{amit2002parametric,sammut1992learning} with classifier, and outperforms 0.23 if we approximate the $Q$ function using linear function. 
+Note that we are not intended to benchmark the accuracy.
+Instead we use these quantitative evaluations to ensure that the optimization \ref{eqn:sgd} well converges and produces meaningful action-value approximation.
 
 \section{Results}
 
-Different from previous approaches on Atari games \cite{mnih2015human} and zero-sum games \cite{silver2016mastering,heinrich2016deep}, our approach models the user behavior instead of simply persuing advancement. Using Table. \ref{tbl:satisfactions} and solve LP \eqref{eqn:lp} on a dataset randomly drawn from the whole WoWAH dataset, the universal underlying reward mechanism of the player community is revealed as $\phi=(0.61, 0.16, 0.07, 0.05, 0.10)^T$. In another words, when conducting a behavior, in general the user's consideration is composed of 61\% there advancement, 16\% their competition, 7\% their relationship, 5\% their teamwork, and 10\% their escapism. The results is illustrated as a spider map in Fig. \ref{fig:spider}.
+Different from previous results about RL prevailing on Atari games \cite{mnih2015human} and zero-sum games \cite{silver2016mastering,heinrich2016deep}, our approach models the user motivation and behavior instead of simply pursuing advancement. 
+Using Table. \ref{tbl:satisfactions} and solve LP \eqref{eqn:lp} on a trajectory pieces randomly drawn from the original WoWAH dataset, the universal underlying reward mechanism of the player community is revealed as $\phi=(0.61, 0.16, 0.07, 0.05, 0.10)^T$. 
+In another words, when conducting a behavior, the user's consideration is composed of 61\% there advancement, 16\% their competition, 7\% their relationship, 5\% their teamwork, and 10\% their escapism on average. 
+The results is illustrated as a spider map in Fig. \ref{fig:spider}.
+While game designers, researchers, and parents and educators are meticulous with the motivation of play, we provide an scientific and quantitative way to demonstrate it.
 
-Armed with the model we conduct three different kinds further studies on WoWAH dataset. First we show that our model better describes the user behavior, than those who takes only single satisfaction metric. After recovering the underlying reward mechanism of the environment, our model could predict the move of the users, instead of just suggesting the best move for advancing (as $Q^1$ does). We then show the divergence of the underlying reward machenism between different groups of people, which is the causality driving the divergence of user behaviors. For example as the level of a player becomes higher, it tends to cares more about relationship than advancement. Finally we show, using our model, the evolution of underlying user satisfaction over time. Especially, observing the dynamics around the release of patch \textit{Fall of the Lich King}\footnote{http://wowwiki.wikia.com/wiki/Patch\_3.3.0}, it shed some light on quantitative models of the game design.
+Armed with our model we conduct three different kinds further studies on WoW user research, sketch in the workflow graph in Fig. \ref{fig:results}.
+First we show that our model better describes the user behavior, than those who takes only single satisfaction metric.
+After modeling the underlying reward mechanism of the environment, we predict the move of the average users, instead of just suggesting the best move for advancing (as $Q^1$ does).
+The prediction made by our model is more consistent and accurate than any other trial does.
+We then show, using our model, the dynamic of underlying user motivation over time. 
+As the motivation system adapts itself over time, WoW adjusts its reward system to make the game more popular.
+Especially, observing the dynamics around the release of patch \textit{Fall of the Lich King}\footnote{http://wowwiki.wikia.com/wiki/Patch\_3.3.0}, it shed some light on how game designs would affect the environment in a quantitative way.
+Finally we show the divergence of the underlying reward mechanism between different groups of people. 
+One of our analysis matches with the common knowledge, that a player cares more about their \textit{social} than their \textit{achievement} as she/he get more involved into the game.
+It make sense to imagine a newcomer spend every minutes collecting experience in order to reach the next plume of golden light for leveling up, meanwhile a veteran sunk in the joy of raiding and chatting with friends.
+Since our models is capable to apply to arbitrary group of players as long as they're commonly pursuing any form of reward, it's a powerful tool to categorize and make representation of users, which further benefit techniques such as targeted advertising, targeted recommendation, etc.
 
 \begin{figure}[t]
     \centering
@@ -358,15 +376,62 @@ Armed with the model we conduct three different kinds further studies on WoWAH d
     \label{fig:results}
 \end{figure}
 
+\subsection{Predicting User Behaviors}
 
-\subsection{Predicting the Users' Behavior}
+WoW offers a diverse and complex game environment which serve players with extra flexibility to evolve different game styles.
+In RL, to best estimate the general game strategies of a group of users, e.g. those who from have been included in WoWAH dataset, a proper model of reward function is called for rather than a heuristic one.
+In fact, any hand-crafted reward function would bias from the actual one, and thus leads to a biased estimation of user behaviors.
+In our approach, we firstly solve the SGD \eqref{eqn:sgd} and LP \eqref{eqn:lp} using randomly drown trajectories. 
+We then compute the policy using Eq. \eqref{eqn:policy} and compare the output of $\hat{a}=\pi(s)$ with actual action $a$ recorded in the dataset.
+We exclude those trajectories that were randomly drown when evaluating the accuracy to keep the integrity, though, it would not have made a significant difference.
 
-explain different game play styles
+We also compare the quality of prediction with behavioral cloning, which straightforwardly learns a mapping from states $s$ to action $a$, using classifiers. 
+Two famous successful example were about motor control \cite{amit2002parametric} and fly in virtual environment \cite{sammut1992learning}.
+Behavioral cloning usually fails to achieve state-of-the-art result, because the interaction between human and the game was limited by the model assumption of the classifier.
+Note that the comparison is for reference only, because we are not trying to just mimic how players moves, but build a model which understand the motivation of those players.
+And behavioral cloning by no means could achieve our objective, nor provide any help to understand players or the game (that's also why behavioral cloning not being a popular approach \cite{argall2009survey}).
 
-Armed with the reward mechanism we are able to model users' behavior instead of creating an agent to play the game itself. 
-Consider that the users' motivation of playing is more than leveling up, 
+We show the accuracy of different approaches in Table. \ref{tbl:accuracy}. 
+It shows that the accuracy will decrease on average if we apply a disturb on the weight vector $\phi$, making it $\phi+\epsilon$ where $||\epsilon||_1=0, ||\epsilon||_2<<0$ is a disturbance.
+It follows the same step in Eq. \eqref{eqn:policy} to acquire the policy.
+Also observe from the table that policies induced by single satisfaction factor cannot model user behavior in a high standard.
+We also show, by comparing DQN and linear Q-network structure, that the deep architecture illustrated in Fig. \ref{fig:architecture} is necessary to capture the complex and multi-dimensional input.
+Finally it occurs that behavioral cloning is competitive with our results.
 
-Another interesting observation is the tradeoff between exploitation and exploration. In fact, many users' actions are sub-optimal, in the sense that they care too much about the satisfaction in the near future.
+\begin{table}
+\caption{Accuracy of different approaches}
+\begin{tabularx}{\textwidth}{ll}
+    Approach & Accuracy \\
+    \midrule
+    $\pi^\ast$ & 56.5\% \\
+    Disturbed $\pi^\ast$ & 52.5\% \\
+    $\pi^1$ & 45.9\% \\
+    $\pi^5$ & 23.2\% \\
+    Q-Linear & 29.5\% \\
+    Cloning & 55.8\% \\
+    \label{tbl:accuracy}
+\end{tabularx}
+\end{table}
+
+A close look at the errors made in the prediction yields some interesting observations. 
+As our models assumes that every players maximizes their cumulative reward in Eq. \eqref{eqn:irl}, the players have been regarded as rational and foresighted.
+That is, the players should be able to handle the tradeoff between exploitation and exploration, and not be committed to short-term rewards.
+Q-learning achieves this by using cumulative reward as the action-value function, however, humans usually fall into the delayed gratification which has long been recognized \cite{mischel1972cognitive}.
+Unfortunately, it would trouble our model which cannot figure if those action are conducted intentionally for some kind of objective or just because of the sub-optimality of play.
+Take a pair of users as an example, shown in Fig. \ref{fig:trajectory}.
+Both have committed over 3000 hours of play and reached the level 70, the maximum level one can reach at that time.
+But the prediction accuracy for the player corresponding to the upper figure (player A) is 67.0\%, compared 39.1\% with the player at bottom (player B).
+It's possibly because the fact that our model believes majority of time should not be happened on the same zone the player was spending at the early or middle stage of the game.
+But for some player, such as player B, it could be very hard to switch and get out of the familiar place and explore new possibilities for further advancement.
+This example would provide a future direction of our work, that to model user behavior, we should not only care about the diverse of motivation, but also the diverse of ability to pursue the reward they want.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\textwidth]{figs/Rplot31.png}
+    \includegraphics[width=\textwidth]{figs/Rplot36.png}
+    \caption{Different Play Styles. The lateral axis indicates play time, with 10 minutes for each time period. and the dot at any time indicate a zone, out of 165 zones, the player was in at that time.. The color of the dots vary as the player levels up.}
+    \label{fig:trajectory}
+\end{figure}
 
 \subsection{Behavior Evolution over Time}
 
@@ -374,6 +439,10 @@ The way the user
 
 \subsection{Behavior Divergence between Different Groups of User}
 
+\section{Conclusive Discussion and Future Works}
+
+future: customization
+future: user
 
 \bibliographystyle{sigchi}
 \bibliography{refs}
