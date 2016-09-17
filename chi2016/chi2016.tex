@@ -164,9 +164,19 @@ As the weights basically depicts a user's profile, it would be very meaningful i
 
 \subsection{Player Behavior Analysis in Online Games}
 
-In Game User Research Methods, there are many methods used to evaluate \textit{playability and usability} of games. \textit{Think Aloud Protocol}, \textit{Retrospective Testing}, \textit{Heuristic Evaluation} and \textit{Physiology-based Playtesting} are five qualitative research methods \cite{desurvire2013methods}. Fast and efficiency are the most valuable results of those methods bring to us. However, it cannot learn all users' motivations in the games \cite{kivikangas2011review}. Moreover, it is difficult for researchers to evaluate the results based on the qualitative psychology model. For instance, \textit{Heuristic Evaluation} is the method used in small expert player group and it only gets result from expert feedback. However, in large game different motivations are driven by different kinds of users. Thus it is not possible to that to present all users' ideas \cite{desurvire2013methods}.
+In game user research, several methods used to evaluate playability and usability of games.
+Namely, \textit{Think Aloud Protocol}, \textit{Retrospective Testing}, \textit{Heuristic Evaluation} \cite{pinelle2008heuristic} and \textit{Physiology-based Playtesting} \cite{mirza2011understanding} are four qualitative research methods \cite{desurvire2013methods}.
+Those methods provide fast and efficiency results, however, it cannot learn all users' motivations in the games \cite{kivikangas2011review}. 
+Moreover, it is difficult for researchers to evaluate the results based on the qualitative psychology model. 
+For instance, \textit{Heuristic Evaluation} is the method used in small expert player group and it only gets result from expert feedback, while in large game different motivations are driven by different kinds of users. 
+Thus it is not possible to use it to model common users' ideas \cite{desurvire2013methods}.
 
-Despite those qualitative user research methods, \textit{Frequency Data Analysis}, \textit{A/B Testing} and \textit{Experimental Factorial Design} are the most common quantitative user testing methods \cite{el2013game}.  \textit{Frequency Data Analysis}, which previously used in WoWAH dataset \cite{Bell2013a}, is more based on factorial type and time series statistic method. It can only evaluate single variables in the model. However, for some complex games, the players behaviors and motivations are not just one, sometimes, the motivations are multiple and even mixed. It causes difficulties for researchers to use linear handcraft model to formulate user behavior. In order to get better understand about multi-users' behavioral, we then introduce Reinforcement Learning, one theory in machine learning inspired by behavioral psychology, into game user research field.
+Despite those qualitative user research methods, \textit{Frequency Data Analysis} \cite{el2013game}, \textit{A/B Testing} \cite{lange2009initial} and \textit{Experimental Factorial Design} \cite{ebner2007successful} are the most common quantitative user testing methods.
+\textit{Frequency Data Analysis}, which was previously used in WoWAH dataset \cite{Bell2013a}, is mostly based on factorial type and time series statistic method. 
+It can only evaluate single variables in the model, while for some complex games, the players behaviors and motivations are not unary. 
+The motivations are multiple and even mixed in a real game environment. 
+Those restricts leads to difficulties for researchers to use linear handcraft model to formulate user behaviors. 
+In order to get better understand about multi-users' behavior model, more complex and powerful model, such as reinforcement learning, are needed for game user research.
 
 \subsection{Reinforcement Learning and Inverse Reinforcement learning}
 
@@ -264,7 +274,7 @@ which is then formulated into the following linear programming (LP) problem
 \begin{aligned}
 & \underset{\phi, \xi}{\mathrm{minimize}}
 & & C\sum \xi_{s,a} \\
-& \mathrm{subject to}
+& \mathrm{subject}\text{ }\mathrm{to}
 & & \phi^T(\tilde{Q}(s,a)-\tilde{Q}(s,a^\prime)) \geq - \xi_{s,a}, \\
 &&& \quad\quad\quad \forall (s,a) \in \tau, a^\prime \in \mathcal{A}(s)\backslash a \\
 &&& \phi \geq 0, \; ||\phi||_1\geq 1\\
@@ -448,6 +458,17 @@ Note that at any time the weights of those elements sum to 1.
 
 It's firstly observed the dramatic increase on advancement and competition, during the mid-to-late period of the graph.
 It happens at about the 150000th time period, which correspond to Nov 2008, the release of patch \textit{Wraith of the Lich King}.
+Analyzing the game patch, the increment of advancement and competition are because of two major reasons.
+First, the patch increases the maximum level from 70 to 80.
+Players with already 70 levels are flurry to complete the remaining 10 levels to reach the new maximum.
+Second, the patch introduces two new classes in game, namely \textit{Death Knight} and \textit{}.
+Many will open secondary accounts to start their new journey using the avatar with the newly introduced class.
+Meanwhile, they tend to join player-versus-player to compete with other human players, in order to get more familiar about the mechanism of their new avatar.
+It's also noticed that the satisfactions are not independent of each other.
+As players spend more time on advancement, they usually have insufficient time to complete tasks which requires teamwork and provides no experience for leveling up.
+That's shown on Fig. \ref{fig:trend} that the weight for teamwork decreases each time the weight for advancement increases, and vice versa.
+
+We consider the overall trend of the game during the 3 years.
 
 
 \subsection{Behavior Divergence between Different Groups of Users}
@@ -457,6 +478,10 @@ Nope, though, they may used to be.
 Analysis in Fig. \ref{fig:spider} shows that players with level 50 or higher focus 50\% less on their advancement, than those with level 49 or lower.
 We also notice that with the increase of level, players participate less in competition than before, instead they maintain a long term relationship with friends and guild members fighting against computer controlled characters.
 
+What's the most teamwork-oriented class in game?
+It turns out to be.
+
+What will a play focusing on, if they're not joining a guild?
 
 \section{Conclusive Discussion and Future Works}
 
