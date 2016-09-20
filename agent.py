@@ -62,6 +62,8 @@ def frames_dep(num_frames=-1, require_expert=False):
 def rewards():
     # idx, user, tt, guild, lvl, Races[race], Categories[category], Zones[zone], seq
     from zoneinfo import Zonetypes
+    from logstats import Lk
+    from shutil import rmtree
     zonetype_total = len(Zonetypes)
     with open('data/usersjson_sketch.txt') as fp:
         users_sketch = json.loads(fp.readline())
@@ -81,8 +83,8 @@ def rewards():
             return 0
     directory = 'data/users'
     dw = 'data/trajs'
-    if not os.path.exists(dw):
-        os.mkdir(dw)
+    rmtree(dw)
+    os.makedirs(dw)
     usersdir = os.listdir(directory)
     totaluser = len(usersdir)
     for i, userfile in enumerate(usersdir):
@@ -96,6 +98,7 @@ def rewards():
         if not lvl_change:
             continue
         lvl_range = {lvl for lvl in lvl_change if lvl - 1 in lvl_change}
+        #print(lvl_range)
         if len(lvl_range) < 5:
             continue
         lvl_gain = {lvl:lvlscore(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
@@ -112,6 +115,8 @@ def rewards():
         for idx in range(len(s)):
             lvl = s[idx][4]
             if not lvl in lvl_range:
+                continue
+            if s[idx][2] <= Lk - 144 and lvl == 70:
                 continue
             users[user] += 1
             zone = s[idx][7]
@@ -319,7 +324,7 @@ def hdf_dump(trajsjson='data/trajsjson.txt', path='data/episodes.hdf', size=1000
                 break
             if idx % 1000 == 0 and size > 30000:
                 fw.flush()
-                print(idx)
+                print(idx, time.time())
             context[idx] = frame[0]
             reward[idx] = frame[1]
             action[idx] = frame[2]
@@ -608,7 +613,7 @@ class NeuralAgent(object):
 if __name__ == "__main__":
     pass
     #rewards()
-    hdf_dump(size=10000)
+    hdf_dump(size=1000000)
     #for x in hdf(num_batch=100):
     #    print(x[0].shape, x[1].shape, x[2].shape, x[3].shape)
     #g = frames()

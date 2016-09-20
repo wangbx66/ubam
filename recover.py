@@ -59,14 +59,14 @@ def timeinterval(ll, uu):
 def certainjson(jsonfile):
     return jsonfile, 'json-{0}'.format(jsonfile), None
 
-def cons_gen(trajsjson, name, flt):
+def cons_gen(trajsjson, name, flt, n_trajs):
     n_r = 5
     skip_frames = 4
     q_funcs = q_tune(n_r, skip_frames)
     batch_size = 1
     num_zones = 165
     C = 1
-    n_trajs = 1500
+    n_trajs = n_trajs
     q_val_eval = list(range(n_r))
     d_q = np.zeros((num_zones, n_r))
     A = []
@@ -110,15 +110,19 @@ def pulpsol(A):
     lp_model.solve()
     return lp_model, x
 
-if __name__ == '__main__':
-    #for ll in range(120000, 200000, 4320):
-    ll=149000
-    A = cons_gen(*timeinterval(ll, ll+4320))
+def avgsol(A):
     s = pos(A)
     t = neg(A)
-    phi = s.mean(axis=0)
-    print(phi*1.01/phi.sum())
+    m = s.mean(axis=0)
+    phi = m * 1.01 / m.sum()
     per = [int(0.5+x*100/phi.sum()) for x in phi]
-    print(per)
-    lp_model, x = pulpsol(A)
+    return per
 
+if __name__ == '__main__':
+    for ll in range(10000, 200000, 4320):
+    #ll=149000
+        A = cons_gen(*timeinterval(ll, ll+4320), 1500)
+        per = avgsol(A)
+        print(ll+2160, per)
+        #lp_model, x = pulpsol(A)
+    pass

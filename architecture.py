@@ -212,6 +212,7 @@ if __name__ == '__main__':
     reward_idx = int(sys.argv[1])
     num_batch = int(sys.argv[2])
     lr = float(sys.argv[3]) # 0.00045
+    name = sys.argv[4]
     
     logging_config()
     
@@ -220,118 +221,125 @@ if __name__ == '__main__':
     theano.config.compute_test_value = 'off'
     #theano.config.optimizer = 'fast_compile'
     #theano.config.exception_verbosity = 'high'
-    
-    l_out = build_wowah_network()
 
-    batch_size = 32
-    #num_batch = 3000
-    test_batch = 1000
-    num_frames = 10
-    skip_frames = 4
-    input_width = 8
-    input_height = 1
-    discount = 0.99
-    clip_delta = 1.0
-    #lr = 0.00005
-    rho = 0.95
-    rms_epsilon = 0.01
-    num_actions = 165
-    #reward_idx = 0
+    if reward_idx == 5:
+        reward_idxes = range(5)
+    else:
+        reward_idxes = [reward_idx]
+    for reward_idx in reward_idxes:
 
-    states = TT.tensor4('states')
-    next_states = TT.tensor4('next_states')
-    rewards = TT.col('rewards')
-    actions = TT.col('actions', dtype='uint32')
+        l_out = build_wowah_network()
 
-    context_shared = theano.shared(
-        np.zeros((batch_size, num_frames + skip_frames, input_width, input_height),
-                 dtype=theano.config.floatX))
-    rewards_shared = theano.shared(
-        np.zeros((batch_size, 1), dtype=theano.config.floatX),
-        broadcastable=(False, True))
-    actions_shared = theano.shared(
-        np.zeros((batch_size, 1), dtype='uint32'),
-        broadcastable=(False, True))
-    state_shared = theano.shared(
-        np.zeros((num_frames, input_height, input_width),
-                 dtype=theano.config.floatX))
-    
-    q_vals = lasagne.layers.get_output(l_out, states)
-    next_q_vals = lasagne.layers.get_output(l_out, next_states)
-    #next_q_vals = theano.gradient.disconnected_grad(next_q_vals)
+        batch_size = 32
+        #num_batch = 3000
+        test_batch = 1000
+        num_frames = 10
+        skip_frames = 4
+        input_width = 8
+        input_height = 1
+        discount = 0.99
+        clip_delta = 1.0
+        #lr = 0.00005
+        rho = 0.95
+        rms_epsilon = 0.01
+        num_actions = 165
+        #reward_idx = 0
 
-    actionmask = TT.eq(TT.arange(num_actions).reshape((1, -1)), actions.reshape((-1, 1))).astype(theano.config.floatX)
-    target = (rewards + discount * TT.max(next_q_vals, axis=1, keepdims=True))
-    output = (q_vals * actionmask).sum(axis=1).reshape((-1, 1))
-    diff = target - output
-    quadratic_part = TT.minimum(abs(diff), clip_delta)
-    linear_part = abs(diff) - quadratic_part
-    loss_batch = 0.5 * quadratic_part ** 2 + clip_delta * linear_part
-    loss = TT.sum(loss_batch)
-    
-    train_subs = {
-        states: context_shared[:, :-skip_frames],
-        next_states: context_shared[:, skip_frames:],
-        rewards: rewards_shared,
-        actions: actions_shared,
-    }
-    params = lasagne.layers.helper.get_all_params(l_out)
-    updates, grads = rmsprop(loss, params, lr, rho, rms_epsilon)
-    speed = sum([grad.norm(L=2) for grad in grads]) / sum([grad.shape.prod() for grad in grads])
+        states = TT.tensor4('states')
+        next_states = TT.tensor4('next_states')
+        rewards = TT.col('rewards')
+        actions = TT.col('actions', dtype='uint32')
 
-    train = theano.function(inputs=[], outputs=[loss, speed], updates=updates, givens=train_subs)
-    # we evaluate it using value programming
-    # actions_hat = TT.argmax(q_vals, axis=1)
-    q_func = theano.function(inputs=[states], outputs=q_vals)
-
-    predict_history = np.zeros((test_batch, batch_size))
-
-    for epoch in range(20000):
-        total_loss = 0
-        total_speed = 0
-        hits = 0
-        stays = 0
-        predict_stays = 0
-        keeps = 0
-        predict_histogram = [0] * 165
-        for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
-            action_star = major(action, skip_frames, batch_size)
-
-            if not idx >= num_batch - test_batch:
-                context_shared.set_value(context)
-                rewards_shared.set_value(reward[:,reward_idx].reshape(batch_size, 1))
-                actions_shared.set_value(action_star.reshape(batch_size, 1))
-
-                train_results = train()
-                loss, speed = train_results
-                #speed = train_results[1:]
-                #speed = [float(x) for x in speed]
-                total_loss += loss
-                total_speed += speed
-
-            if idx >= num_batch - test_batch:
-                q_hat = q_func(context[:, :-skip_frames])
-                last = context[:,-(skip_frames+1),3,:].flatten()
-                actions_hat = np.argmax(q_hat * candidates, axis=1)
-                keeps += (actions_hat == predict_history[idx-(num_batch-test_batch)]).sum()
-                predict_history[idx-(num_batch-test_batch)] = actions_hat
-                hits += (actions_hat == action_star).sum()
-                stays += (last == action_star).sum()
-                predict_stays += (last == actions_hat).sum()
-                for action in actions_hat:
-                    predict_histogram[action] += 1
-                #print(actions_hat, action_star)
-                #print(hits)
+        context_shared = theano.shared(
+            np.zeros((batch_size, num_frames + skip_frames, input_width, input_height),
+                     dtype=theano.config.floatX))
+        rewards_shared = theano.shared(
+            np.zeros((batch_size, 1), dtype=theano.config.floatX),
+            broadcastable=(False, True))
+        actions_shared = theano.shared(
+            np.zeros((batch_size, 1), dtype='uint32'),
+            broadcastable=(False, True))
+        state_shared = theano.shared(
+            np.zeros((num_frames, input_height, input_width),
+                     dtype=theano.config.floatX))
         
-        accuracy = hits / (batch_size * test_batch)
-        stick = stays / (batch_size * test_batch)
-        predict_stick = predict_stays / (batch_size * test_batch)
-        dominate_rate = max(predict_histogram) / (batch_size * test_batch)
-        keep_rate = keeps / (batch_size * test_batch)
-        logging.info('epoch #{3}: loss={0}, spd={1}, acc={2}, unary={4}/~60%, dmt={5}, keep={6}'.format(total_loss, total_speed, accuracy, epoch+1, predict_stick, dominate_rate, keep_rate))
-        #print('stay rate = {0}, unary rate = {1}'.format(stick, predict_stick))
-        #logging.info(str(np.argmax(q_hat, axis=1)))
-        network = lasagne.layers.get_all_param_values(l_out)
-        netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch+1, accuracy), 'wb')
-        pickle.dump(network, netfile)
+        q_vals = lasagne.layers.get_output(l_out, states)
+        next_q_vals = lasagne.layers.get_output(l_out, next_states)
+        #next_q_vals = theano.gradient.disconnected_grad(next_q_vals)
+
+        actionmask = TT.eq(TT.arange(num_actions).reshape((1, -1)), actions.reshape((-1, 1))).astype(theano.config.floatX)
+        target = (rewards + discount * TT.max(next_q_vals, axis=1, keepdims=True))
+        output = (q_vals * actionmask).sum(axis=1).reshape((-1, 1))
+        diff = target - output
+        quadratic_part = TT.minimum(abs(diff), clip_delta)
+        linear_part = abs(diff) - quadratic_part
+        loss_batch = 0.5 * quadratic_part ** 2 + clip_delta * linear_part
+        loss = TT.sum(loss_batch)
+        
+        train_subs = {
+            states: context_shared[:, :-skip_frames],
+            next_states: context_shared[:, skip_frames:],
+            rewards: rewards_shared,
+            actions: actions_shared,
+        }
+        params = lasagne.layers.helper.get_all_params(l_out)
+        updates, grads = rmsprop(loss, params, lr, rho, rms_epsilon)
+        speed = sum([grad.norm(L=2) for grad in grads]) / sum([grad.shape.prod() for grad in grads])
+
+        train = theano.function(inputs=[], outputs=[loss, speed], updates=updates, givens=train_subs)
+        # we evaluate it using value programming
+        # actions_hat = TT.argmax(q_vals, axis=1)
+        q_func = theano.function(inputs=[states], outputs=q_vals)
+
+        predict_history = np.zeros((test_batch, batch_size))
+
+
+        for epoch in range(75):
+            total_loss = 0
+            total_speed = 0
+            hits = 0
+            stays = 0
+            predict_stays = 0
+            keeps = 0
+            predict_histogram = [0] * 165
+            for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
+                action_star = major(action, skip_frames, batch_size)
+
+                if not idx >= num_batch - test_batch:
+                    context_shared.set_value(context)
+                    rewards_shared.set_value(reward[:,reward_idx].reshape(batch_size, 1))
+                    actions_shared.set_value(action_star.reshape(batch_size, 1))
+
+                    train_results = train()
+                    loss, speed = train_results
+                    #speed = train_results[1:]
+                    #speed = [float(x) for x in speed]
+                    total_loss += loss
+                    total_speed += speed
+
+                if idx >= num_batch - test_batch:
+                    q_hat = q_func(context[:, :-skip_frames])
+                    last = context[:,-(skip_frames+1),3,:].flatten()
+                    actions_hat = np.argmax(q_hat * candidates, axis=1)
+                    keeps += (actions_hat == predict_history[idx-(num_batch-test_batch)]).sum()
+                    predict_history[idx-(num_batch-test_batch)] = actions_hat
+                    hits += (actions_hat == action_star).sum()
+                    stays += (last == action_star).sum()
+                    predict_stays += (last == actions_hat).sum()
+                    for action in actions_hat:
+                        predict_histogram[action] += 1
+                    #print(actions_hat, action_star)
+                    #print(hits)
+            
+            accuracy = hits / (batch_size * test_batch)
+            stick = stays / (batch_size * test_batch)
+            predict_stick = predict_stays / (batch_size * test_batch)
+            dominate_rate = max(predict_histogram) / (batch_size * test_batch)
+            keep_rate = keeps / (batch_size * test_batch)
+            logging.info('{8} #{3}/{7}: loss={0}, spd={1}, acc={2}, unary={4}/~60%, dmt={5}, keep={6}'.format(total_loss, total_speed, accuracy, epoch+1, predict_stick, dominate_rate, keep_rate, reward_idx, name))
+            #print('stay rate = {0}, unary rate = {1}'.format(stick, predict_stick))
+            #logging.info(str(np.argmax(q_hat, axis=1)))
+            network = lasagne.layers.get_all_param_values(l_out)
+            netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch+1, accuracy), 'wb')
+            pickle.dump(network, netfile)
             
