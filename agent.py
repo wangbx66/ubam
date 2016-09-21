@@ -243,7 +243,7 @@ def frames(num_frames=10, skip_frames=4, trajsjson='data/trajsjson.txt', rng=np.
                     r4 = float(r4) 
                     r5 = float(r5)
                     if not flt is None:
-                        if flt(idx_logstats, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5):
+                        if not flt(idx_logstats, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5):
                             valid = False
                             break
                     #print(idx, start, start + num_frames + skip_frames - 1)

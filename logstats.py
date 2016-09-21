@@ -34,6 +34,7 @@ def keymatch():
     idx = 99
     maxguild = 0
     mintt = -1
+    maxtt = -1
     for line in fp:
         if line.startswith('#') or line.startswith('RowID'):
             continue
@@ -50,6 +51,10 @@ def keymatch():
             mintt = tt
         else:
             mintt = min(mintt, tt)
+        if maxtt < 0:
+            maxtt = tt
+        else:
+            maxtt = max(maxtt, tt)
         if guild == 'Null':
             guild = 0
         else:
@@ -76,6 +81,7 @@ def keymatch():
         fw.write('\n')
         fw.write(str(cnt))
     print('maxguild is {0}'.format(maxguild))
+    print(mintt, maxtt)
     return zones, cnt, mintt, maxguild
 
 def cat_user():
@@ -241,7 +247,7 @@ def trajectory():
     return locals()
 
 if __name__ == '__main__':
-    #zones, cnt, mintt, maxguild = keymatch()
+    zones, cnt, mintt, maxguild = keymatch()
     #cat_user()
     #s = trajectory()
     #lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()

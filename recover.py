@@ -23,10 +23,10 @@ def q_tune(n_r, skip_frames, hdf_file='data/episodes.hdf'):
     l_outs = list(range(n_r))
     q_vals = list(range(n_r))
     q_funcs = list(range(n_r))
-    A = [20, 5, 5, 5, 5]
+    A = [2, 15, 6, 6, 5]
     for i in range(n_r):
         states = TT.tensor4('states')
-        pp = pickle.load(open('data/Q{0}.pkl'.format(i), 'rb'))
+        pp = pickle.load(open('data/Q-{0}.pkl'.format(i), 'rb'))
         l_outs[i] = build_wowah_network()
         lasagne.layers.set_all_param_values(l_outs[i], pp)
         q_vals[i] = lasagne.layers.get_output(l_outs[i], states)
@@ -56,6 +56,11 @@ def timeinterval(ll, uu):
         return ll <= tt <= uu
     return 'data/trajsjson.txt', 'time-{0}-{1}'.format(ll, uu), flt
 
+def levelinterval(ll, uu):
+    def flt(idx_logstats, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5):
+        return ll <= lvl <= uu
+    return 'data/trajsjson.txt', 'level-{0}-{1}'.format(ll, uu), flt
+
 def certainjson(jsonfile):
     return jsonfile, 'json-{0}'.format(jsonfile), None
 
@@ -71,7 +76,6 @@ def cons_gen(trajsjson, name, flt, n_trajs):
     d_q = np.zeros((num_zones, n_r))
     A = []
     
-    #name, flt = universal()
     if not os.path.exists('data/episodes'):
         os.mkdir('data/episodes')
     path = 'data/episodes/{0}_{1}.hdf'.format(name, n_trajs)
@@ -114,15 +118,32 @@ def avgsol(A):
     s = pos(A)
     t = neg(A)
     m = s.mean(axis=0)
+    m = 1 / m
     phi = m * 1.01 / m.sum()
     per = [int(0.5+x*100/phi.sum()) for x in phi]
     return per
 
+def solve(A, tt):
+    per = avgsol(A)
+    print(tt, per)
+    #lp_model, x = pulpsol(A)
+    #print([x[i].value() for i in range(5)])
+
+def general_trend():
+    duration = 14320
+    for ll in range(10000, 200000, duration):
+        A = cons_gen(*timeinterval(ll, ll+duration), 4500)
+        solve(A, ll+duration/2)
+
+def lk_trend():
+    duration = 4320
+    for ll in range(150804-duration*3, 200000, duration):
+        A = cons_gen(*timeinterval(ll, ll+duration), 4500)
+        solve(A, ll+duration/2)
+
+def overall():
+    A = cons_gen(*universal(), 30000)
+    solve(A, 0)
+
 if __name__ == '__main__':
-    for ll in range(10000, 200000, 4320):
-    #ll=149000
-        A = cons_gen(*timeinterval(ll, ll+4320), 1500)
-        per = avgsol(A)
-        print(ll+2160, per)
-        #lp_model, x = pulpsol(A)
-    pass
+    overall()

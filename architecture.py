@@ -211,8 +211,9 @@ if __name__ == '__main__':
     
     reward_idx = int(sys.argv[1])
     num_batch = int(sys.argv[2])
-    lr = float(sys.argv[3]) # 0.00045
-    name = sys.argv[4]
+    n_epoch = int(sys.argv[3])
+    lr = float(sys.argv[4]) # 0.00045
+    name = sys.argv[5]
     
     logging_config()
     
@@ -294,7 +295,7 @@ if __name__ == '__main__':
         predict_history = np.zeros((test_batch, batch_size))
 
 
-        for epoch in range(75):
+        for epoch in range(n_epoch):
             total_loss = 0
             total_speed = 0
             hits = 0
@@ -336,10 +337,11 @@ if __name__ == '__main__':
             predict_stick = predict_stays / (batch_size * test_batch)
             dominate_rate = max(predict_histogram) / (batch_size * test_batch)
             keep_rate = keeps / (batch_size * test_batch)
-            logging.info('{8} #{3}/{7}: loss={0}, spd={1}, acc={2}, unary={4}/~60%, dmt={5}, keep={6}'.format(total_loss, total_speed, accuracy, epoch+1, predict_stick, dominate_rate, keep_rate, reward_idx, name))
+            loss = total_loss / (batch_size * (num_batch - test_batch))
+            logging.info('{8} #{3}/{7}: loss={0}, spd={1}, acc={2}, unary={4}/~60%, dmt={5}, keep={6}'.format(loss, total_speed, accuracy, epoch+1, predict_stick, dominate_rate, keep_rate, reward_idx, name))
             #print('stay rate = {0}, unary rate = {1}'.format(stick, predict_stick))
             #logging.info(str(np.argmax(q_hat, axis=1)))
             network = lasagne.layers.get_all_param_values(l_out)
-            netfile = open('data/networks/Q-{0}-{1}-{2}.pkl'.format(reward_idx, epoch+1, accuracy), 'wb')
+            netfile = open('data/networks/Q-{2}-{0}-{1}.pkl'.format(reward_idx, epoch+1, name), 'wb')
             pickle.dump(network, netfile)
             
