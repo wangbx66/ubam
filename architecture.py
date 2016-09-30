@@ -206,6 +206,7 @@ def major(actions, skip_frames, batch_size):
     return np.array(z, dtype=np.uint32)
 
 if __name__ == '__main__':
+    # python architecture.py 0 3000 300 0.0025 sam-sep-30 
     if not os.path.exists('data/networks'):
         os.mkdir('data/networks')
     
