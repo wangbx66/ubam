@@ -3,7 +3,7 @@
 ## windows 7 config
 
 install git  
-install anaconda3
+install anaconda3  
 open command line (*windows*+*r*, type *cmd*, then *enter*)
 ```cmd
 mode 190,50
@@ -23,8 +23,12 @@ import theano
 
 new a file *.theanorc* to *c:\users\szheng*, and write
 ```
+#!sh
 [global]
 device=cpu
 floatX=float32
-cxx=
+
+[nvcc]
+compiler_bindir=C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin
+flags=-LC:\Users\szheng\AppData\Local\Continuum\Anaconda3
 ```
