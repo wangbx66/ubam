@@ -32,3 +32,58 @@ floatX=float32
 compiler_bindir=C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin
 flags=-LC:\Users\szheng\AppData\Local\Continuum\Anaconda3
 ```
+
+##Sam
+
+UBAM DL
+
+
+Step1: 
+
+
+Agent.py % Parse and clean WoWH dataset
+% Step1: Trajs
+% Step2: Compress Trajs into HDF5
+
+
+
+- reward() % calculate satisfaction, output data/trajs
+
+- hdf_dump() % experience reply data
+
+
+
+Architecure.py
+
+- Buid and train Q model 
+
+Example: 
+
+
+python architecture.py 0 3000 300 0.0025 sam-sep-30
+
+0 (reward index 0 means all 5f, 1 means f1 (advancement))
+
+3000 ( batch x 24(frame/reply))
+
+300 (loop length/horzion)
+
+0.0025 (learning rate)
+
+sam-sep-30 (file name for Q network)
+
+Output file: 
+Q Network
+architecture.log (for training evaluation)
+
+
+Recover.py 
+
+% Load Q network
+% Formulate iRL cons_gen function
+% q_val_eval Q(st,a)
+% pulpsol (Python Linear Programming Solver)
+
+
+
+
