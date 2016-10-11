@@ -1,146 +1,276 @@
-from __future__ import division
-
 import os
+import re
 import math
 import json
+from shutil import rmtree
 
-#import matplotlib.pyplot as plt
+p_sub = re.compile(r'<U\+(?P<code>[0-9A-F]{4})>')
+p_repl = r'\u\g<code>'
 
-Guilds = 512
-Races = {'Blood Elf':0, 'Orc':1, 'Tauren':2, 'Troll':3, 'Undead':4}
-Categories = {'Death Knight':0, 'Druid':1, 'Hunter':2, 'Mage':3, 'Paladin':4, 'Priest':5, 'Rogue':6, 'Shaman':7, 'Warlock':8, 'Worrier':9}
-Zones = {"Quel'thalas": 0, 'Coilfang: The Slave Pens': 1, 'Uldaman': 2, 'The Steamvault': 3, 'Maraudon': 4, 'Molten Core': 5, "Ahn'kahet: The Old Kingdom": 6, 'Tempest Keep': 7, 'Auchindoun: Shadow Labyrinth': 8, 'Blackfathom Deeps': 9, "Blade's Edge Mountains": 10, 'Deeprun Tram': 11, 'Naxxramas': 12, 'The Blood Furnace': 13, 'The Frozen Sea': 14, 'Winterspring': 15, "Gruul's Lair": 16, 'Old Hillsbrad Foothills': 17, 'Swamp of Sorrows': 18, 'Badlands': 19, 'Razorfen Kraul': 20, 'Searing Gorge': 21, 'Dun Morogh': 22, "Gates of Ahn'Qiraj": 23, 'Stormwind City': 24, 'Scholomance': 25, 'Azjol-Nerub': 26, 'Ghostlands': 27, "Onyxia's Lair": 28, 'Hall of Legends': 29, 'Deadwind Pass': 30, 'Nagrand Arena': 31, 'The Culling of Stratholme': 32, 'Icecrown': 33, 'Deadmines': 34, 'Dragonblight': 35, 'The Exodar': 36, 'The Arcatraz': 37, 'Durotar': 38, 'Ragefire Chasm': 39, 'Ironforge': 40, 'Elwynn Forest': 41, 'The Underbog': 42, '\xe6\xaf\x92\xe7\x89\x99\xe6\xb2\xbc\xe6\xbe\xa4': 43, 'The Barrens': 44, 'Halls of Stone': 45, '\xe9\xbe\x8d\xe9\xaa\xa8\xe8\x8d\x92\xe9\x87\x8e': 46, 'Auchenai Crypts': 47, '\xe9\x81\x94\xe7\xb4\x8d\xe8\x98\x87\xe6\x96\xaf': 48, 'The Veiled Sea': 49, 'Dire Maul': 50, 'Blackrock Spire': 51, 'Darkshore': 52, 'The Storm Peaks': 53, '\xe9\xba\xa5\xe5\x85\x8b\xe9\x82\xa3\xe7\x88\xbe': 54, 'Utgarde Pinnacle': 55, 'Sholazar Basin': 56, 'Strand of the Ancients': 57, 'Scarlet Monastery': 58, 'Mulgore': 59, '\xe7\x9b\xa3\xe7\x8d\x84': 60, 'Desolace': 61, 'Tirisfal Glades': 62, "Zul'Gurub": 63, 'The Botanica': 64, 'Shattrath City': 65, "The Temple of Atal'Hakkar": 66, 'The Black Morass': 67, 'Blackwing Lair': 68, 'Nagrand': 69, 'Eastern Plaguelands': 70, 'Arathi Highlands': 71, '\xe6\x9c\xaa\xe7\x9f\xa5': 72, 'Tanaris': 73, 'Azshara': 74, 'Ashenvale': 75, 'Stratholme': 76, 'Burning Steppes': 77, 'Silithus': 78, '\xe5\x8c\x97\xe6\x96\xb9\xe6\xb5\xb7\xe5\xb2\xb8': 79, 'Dalaran\xe7\xab\xb6\xe6\x8a\x80\xe5\xa0\xb4': 80, "Zul'Drak": 81, 'Shadowfang Keep': 82, 'The North Sea': 83, 'Ruins of Lordaeron': 84, 'Sethekk Halls': 85, "Ruins of Ahn'Qiraj": 86, 'Shadowmoon Valley': 87, 'Eye of the Storm': 88, 'Felwood': 89, 'Hyjal': 90, 'Dalaran': 91, 'Razorfen Downs': 92, 'The Obsidian Sanctum': 93, 'The Mechanar': 94, 'Crystalsong Forest': 95, "Magisters' Terrace": 96, "Zul'Farrak": 97, 'Duskwood': 98, 'Thousand Needles': 99, 'Teldrassil': 100, "Blade's Edge Arena": 101, 'Warsong Gulch': 102, 'Borean Tundra': 103, "Un'Goro Crater": 104, 'Netherstorm': 105, 'The Shattered Halls': 106, 'Feralas': 107, 'Alterac Valley': 108, 'Sunwell Plateau': 109, 'Plaguelands: The Scarlet Enclave': 110, 'Wetlands': 111, 'Orgrimmar': 112, 'Blackrock Depths': 113, 'Utgarde Keep': 114, 'Howling Fjord': 115, "Ahn'Qiraj": 116, 'Bloodmyst Isle': 117, 'Hellfire Ramparts': 118, 'Moonglade': 119, 'Grizzly Hills': 120, '\xe6\x99\x82\xe5\x85\x89\xe6\xb4\x9e\xe7\xa9\xb4': 121, 'Azuremyst Isle': 122, 'Twisting Nether': 123, 'Wintergrasp': 124, 'The Nexus': 125, 'Gundrak': 126, 'GM Island': 127, 'Undercity': 128, 'The Eye of Eternity': 129, 'The Violet Hold': 130, "Isle of Quel'Danas": 131, 'The Ring of Valor': 132, "Magtheridon's Lair": 133, 'Stonetalon Mountains': 134, 'Hillsbrad Foothills': 135, 'Alterac Mountains': 136, 'Western Plaguelands': 137, 'Blasted Lands': 138, 'Black Temple': 139, 'Blackrock Mountain': 140, 'Zangarmarsh': 141, 'Wailing Caverns': 142, 'Hellfire Peninsula': 143, 'Eversong Woods': 144, 'Redridge Mountains': 145, 'Dustwallow Marsh': 146, 'Silvermoon City': 147, 'Stranglethorn Vale': 148, 'Terokkar Forest': 149, 'Thunder Bluff': 150, 'The Hinterlands': 151, 'Halls of Lightning': 152, 'Karazhan': 153, 'The Great Sea': 154, 'Serpentshrine Cavern': 155, "Drak'Tharon Keep": 156, 'Arathi Basin': 157, 'Silverpine Forest': 158, 'The Oculus': 159, 'Vault of Archavon': 160, 'Gnomeregan': 161, 'Mana-Tombs': 162, 'Westfall': 163, 'Loch Modan': 164}
-Cnt = {"Quel'thalas": 100, 'Coilfang: The Slave Pens': 149884, 'Uldaman': 58463, 'The Steamvault': 177904, 'Maraudon': 112407, 'Molten Core': 371204, "Ahn'kahet: The Old Kingdom": 12029, 'Tempest Keep': 180191, 'Auchindoun: Shadow Labyrinth': 228552, 'Blackfathom Deeps': 32793, "Blade's Edge Mountains": 720365, '1608\xe5\xb3\xbd\xe8\xb0\xb7': 22, 'Deeprun Tram': 214, 'Naxxramas': 112279, 'The Blood Furnace': 116867, 'The Frozen Sea': 842, 'Winterspring': 435649, "Gruul's Lair": 101149, 'Old Hillsbrad Foothills': 61113, 'Swamp of Sorrows': 138871, 'Badlands': 203618, 'Razorfen Kraul': 53133, 'Searing Gorge': 144363, '1007\xe5\x9f\x8e': 1, 'Dun Morogh': 2068, "Gates of Ahn'Qiraj": 28869, 'Stormwind City': 1008, 'Scholomance': 249320, 'Azjol-Nerub': 8216, 'Ghostlands': 421959, "Onyxia's Lair": 64539, 'Hall of Legends': 42079, 'Deadwind Pass': 109838, 'Nagrand Arena': 60371, 'The Culling of Stratholme': 14701, 'Icecrown': 49254, 'Deadmines': 3708, 'Dragonblight': 115187, 'The Exodar': 118, 'The Arcatraz': 104756, 'Durotar': 779396, 'Ragefire Chasm': 45876, 'Ironforge': 448, 'Elwynn Forest': 6624, 'The Underbog': 70557, '\xe6\xaf\x92\xe7\x89\x99\xe6\xb2\xbc\xe6\xbe\xa4': 59127, 'The Barrens': 1264010, 'Halls of Stone': 6595, '\xe9\xbe\x8d\xe9\xaa\xa8\xe8\x8d\x92\xe9\x87\x8e': 198382, 'Auchenai Crypts': 45255, '\xe9\x81\x94\xe7\xb4\x8d\xe8\x98\x87\xe6\x96\xaf': 302, 'The Veiled Sea': 65, '1231\xe5\xb4\x94\xe8\x8c\xb2': 36, 'Dire Maul': 215301, 'Blackrock Spire': 363330, 'Darkshore': 6683, 'The Storm Peaks': 49939, '\xe9\xba\xa5\xe5\x85\x8b\xe9\x82\xa3\xe7\x88\xbe': 104230, 'Utgarde Pinnacle': 15318, 'Sholazar Basin': 34952, 'Strand of the Ancients': 4389, 'Scarlet Monastery': 191214, 'Mulgore': 265138, '\xe7\x9b\xa3\xe7\x8d\x84': 136, 'Desolace': 224688, 'Tirisfal Glades': 494279, "Zul'Gurub": 491957, 'The Botanica': 142129, 'Shattrath City': 1892294, "The Temple of Atal'Hakkar": 116346, 'The Black Morass': 90150, 'Blackwing Lair': 262529, 'Nagrand': 931646, 'Eastern Plaguelands': 408189, 'Arathi Highlands': 351509, 'The Forbidding Sea': 2, '\xe6\x9c\xaa\xe7\x9f\xa5': 4958, 'Tanaris': 535285, 'Azshara': 284741, 'Ashenvale': 315793, 'Stratholme': 266104, 'Burning Steppes': 103520, 'Silithus': 511335, 'Null': 0, '\xe5\x8c\x97\xe6\x96\xb9\xe6\xb5\xb7\xe5\xb2\xb8': 1694, 'Dalaran\xe7\xab\xb6\xe6\x8a\x80\xe5\xa0\xb4': 229, "Zul'Drak": 53412, 'Shadowfang Keep': 64958, 'The North Sea': 145, 'Ruins of Lordaeron': 59545, 'Sethekk Halls': 112921, "Ruins of Ahn'Qiraj": 172980, 'Shadowmoon Valley': 760166, '15641': 4, 'Eye of the Storm': 215345, 'Felwood': 412741, 'Hyjal': 109326, 'Dalaran': 89983, 'Razorfen Downs': 45408, 'The Obsidian Sanctum': 6347, 'The Mechanar': 217667, 'Crystalsong Forest': 5543, "Magisters' Terrace": 104077, "Zul'Farrak": 97702, 'Duskwood': 28641, 'Thousand Needles': 410527, 'Teldrassil': 577, "Blade's Edge Arena": 59506, 'Warsong Gulch': 471930, 'Borean Tundra': 123957, "Un'Goro Crater": 293136, 'Netherstorm': 688177, 'The Shattered Halls': 140919, 'Feralas': 389370, 'Alterac Valley': 979136, 'Sunwell Plateau': 35213, 'Plaguelands: The Scarlet Enclave': 16591, 'Wetlands': 28837, 'Orgrimmar': 3091805, 'Blackrock Depths': 129071, 'Utgarde Keep': 14178, 'Howling Fjord': 72999, "Ahn'Qiraj": 147127, 'Bloodmyst Isle': 563, 'Hellfire Ramparts': 172469, 'Moonglade': 24921, 'Grizzly Hills': 44906, '\xe6\x99\x82\xe5\x85\x89\xe6\xb4\x9e\xe7\xa9\xb4': 220, 'Azuremyst Isle': 635, 'Twisting Nether': 7435, '8585': 21, '2029': 8, '61477': 2, 'Wintergrasp': 14931, 'The Nexus': 22434, 'Gundrak': 10067, 'GM Island': 1816, 'Undercity': 782917, 'The Eye of Eternity': 1622, 'The Violet Hold': 14639, "Isle of Quel'Danas": 315415, 'The Ring of Valor': 195, "Magtheridon's Lair": 34742, 'Stonetalon Mountains': 267015, 'Hillsbrad Foothills': 527771, 'Alterac Mountains': 169478, 'Western Plaguelands': 395058, 'Blasted Lands': 74443, 'Black Temple': 111394, 'Blackrock Mountain': 117003, 'Zangarmarsh': 700613, 'Wailing Caverns': 104774, 'Hellfire Peninsula': 952413, 'Eversong Woods': 504236, 'Redridge Mountains': 10486, 'Dustwallow Marsh': 173900, 'Silvermoon City': 178245, 'Stranglethorn Vale': 1063264, 'Terokkar Forest': 983116, 'Thunder Bluff': 337417, 'The Hinterlands': 364793, 'Halls of Lightning': 14902, 'Karazhan': 897530, 'The Great Sea': 99, 'Serpentshrine Cavern': 262185, "Drak'Tharon Keep": 8334, 'Arathi Basin': 965258, 'Silverpine Forest': 260783, 'The Oculus': 7622, 'Vault of Archavon': 2496, 'Gnomeregan': 15595, 'Mana-Tombs': 84220, 'Westfall': 2646, 'Loch Modan': 11949}
-Mintt = 1136069986
-Lktt = 1226552400
-Lk = 150804
-Total = 36513648
+class record:
+    def __init__(self, line, style):
+        if style == 'raw':
+            idx, user, timestamp, guild, lvl, race, category, zone, seq = line.strip().split(', ') # 'category' stands for "class" in WoW
+            self.user = int(user)
+            self.timestamp = int(float(timestamp))
+            self.guild = 0 if guild == 'Null' else int(guild)
+            self.lvl = int(lvl)
+            self.race = race
+            self.category = category
+            self.zone = zone
+        elif style == 'clean':
+            user, tt, guild, lvl, race, category, zone = line.strip().split(',')
+            self.user = int(user)
+            self.tt = int(tt)
+            self.guild = int(guild)
+            self.lvl = int(lvl)
+            self.race = int(race)
+            self.category = int(category)
+            self.zone = int(zone)
+        elif style == 'sat':
+            idx, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5
+        elif style == 'zone':
+            zone, continent, area, alter, subzone, zonetype, size, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max = line
+            zone = re.sub(p_sub, p_repl, zone)
+            self.zone = zone.decode('unicode-escape').encode('utf-8')
+            self.continent = continent
+            self.area = area
+            self.zonetype = zonetype
+            self.lord = lord
 
-def clear(dd, null=False):
-    if 'Null' in dd and not null:
-        del dd['Null']
-    z = list(dd.values())
-    m = {z[i]:i for i in range(len(z))}
-    for x in dd:
-        dd[x] = m[dd[x]]
+def clear(dct, cnt, thres, keep_null=False):
+    if thres > 0:
+        for item in cnt:
+            if cnt[item] <= thres:
+                del dct[item]
+    if 'Null' in dct and not keep_null:
+        del dct['Null']
+    z = list(dct.values())
+    keys = {z[i]:i for i in range(len(z))}
+    for x in dct:
+        dct[x] = keys[dct[x]]
 
-def keymatch():
+def update(item, dct, cnt={}):
+    if not item in dct:
+        dct[item] = max(dct.values()) + 1
+        cnt[item] = 1
+    else:
+        cnt[item] += 1
+
+def constant_generate():
+    '''
+    This function should be called once to generate constant.py, which includes several python variable to be imported by other python scripts.
+    
+    The function filters those minor zones, races, categories, but not guilds. When later importing the constants from other scripts, it should elimite those records containing any minor term.
+    '''
     races = {'Null':0}
+    race_cnt = {'Null':0}
     categories = {'Null':0}
+    category_cnt = {'Null':0}
     zones = {'Null':0}
-    cnt = {'Null':0}
-    fp = open('data/WoWAH_Node_Player_Fixed_Dynamic')
-    ltpl = []
+    zone_cnt = {'Null':0}
     idx = 99
-    maxguild = 0
-    mintt = -1
-    maxtt = -1
-    for line in fp:
-        if line.startswith('#') or line.startswith('RowID'):
-            continue
-        if idx % 10000 == 0:
-            print(idx)
-        #if idx > 100000:
-        #    break
-        s = line.strip().split(', ')
-        idx, user, tt, guild, lvl, race, category, zone, seq = s
-        idx = int(idx)
-        user = int(user)
-        tt = int(float(tt))
-        if mintt < 0:
-            mintt = tt
-        else:
-            mintt = min(mintt, tt)
-        if maxtt < 0:
-            maxtt = tt
-        else:
-            maxtt = max(maxtt, tt)
-        if guild == 'Null':
-            guild = 0
-        else:
-            guild = int(guild)
-        if guild > maxguild:
-            maxguild = guild
-        if not race in races:
-            races[race] = max(races.values()) + 1
-        if not category in categories:
-            categories[category] = max(categories.values()) + 1
-        if not zone in zones:
-            zones[zone] = max(zones.values()) + 1
-            cnt[zone] = 1
-        else:
-            cnt[zone] += 1
-        lvl = int(lvl)
-        seq = int(seq)
-    for zone in cnt:
-        if cnt[zone] < 50:
-            del zones[zone]
-    clear(zones)
-    with open('data/tmp.txt', 'w') as fw:
-        fw.write(str(zones))
-        fw.write('\n')
-        fw.write(str(cnt))
-    print('maxguild is {0}'.format(maxguild))
-    print(mintt, maxtt)
-    return zones, cnt, mintt, maxguild
+    max_guild = 0
+    min_timestamp = -1
+    max_timestamp = -1
+    for line_idx, line in enumerate(open('data/wowah_dynamic')):
+        if line_idx % 5000000 == 0:
+            print('line {0}'.format(line_idx))
+        s = record(line, style='raw')
+        min_timestamp = s.timestamp if min_timestamp < 0 else min(min_timestamp, s.timestamp)
+        max_timestamp = s.timestamp if max_timestamp < 0 else max(max_timestamp, s.timestamp)
+        max_guild = max(max_guild, s.guild)
+        update(s.zone, zones, zone_cnt)
+        update(s.race, races, race_cnt)
+        update(s.category, categories, category_cnt)
+    clear(zones, zone_cnt, 12000, keep_null=False)
+    clear(races, race_cnt, 120000, keep_null=False)
+    clear(categories, category_cnt, 12000, keep_null=False)
+    with open('constant.py', 'w') as fw:
+        fw.write('# -*- coding: utf-8 -*-\n\n')
+        fw.write('Races = {0}\n'.format(str(races)))
+        fw.write('Categories = {0}\n'.format(str(categories)))
+        fw.write('Min_timestamp = {0}\n'.format(min_timestamp))
+        fw.write('Max_timestamp = {0}\n'.format(max_timestamp))
+        fw.write('Liching_timestamp = {0}\n'.format(1226552400))
+        fw.write('lichking_tt = {0}\n'.format((1226552400 - min_timestamp) / 600))
+        fw.write('Total_records = {0}\n'.format(line_idx + 1))
+        fw.write('Max_guild = {0}\n'.format(max_guild + 1))
+        fw.write('Zones = {0}\n'.format(str(zones)))
+        fw.write('Zone_cnt = {0}\n'.format(str(zone_cnt)))
 
 def cat_user():
-    from shutil import rmtree
-    ulvl = {}
-    idx = 99
-    users = {}
-    fp = open('data/WoWAH_Node_Player_Fixed_Dynamic')
+    '''
+    Generates data/user/*, where each file separates one specific user's records. In another word each file is the trajectory of one user.
+    
+    This takes some time especially for those w/o ssd. And this function, once executed, will erase all existing data immediately
+    '''
+    from constant import Total_records
+    from constant import Zones
+    from constant import Races
+    from constant import Categories
+    from constant import Min_timestamp
     rmtree('data/users')
     os.makedirs('data/users')
-    for line in fp:
-        if line.startswith('#') or line.startswith('RowID'):
+    user_lvl = {}
+    users = {}
+    for line_idx, line in enumerate(open('data/wowah_dynamic')):
+        if line_idx % 1000000 == 0:
+            print("line {0}/{1}".format(line_idx, Total_records))
+            open('data/usersjson_sketch.txt', 'w').write(json.dumps(users))
+        s = record(line, style='raw')
+        tt = math.floor((s.timestamp - Min_timestamp) / 600 + 0.5)
+        if not (s.zone in Zones and s.race in Races and s.category in Categories):
             continue
-        if idx % 10000 == 0:
-            print("{0}/{1}".format(idx, Total))
-        #if idx > 3000:
-        #    break
-        s = line.strip().split(', ')
-        idx, user, tt, guild, lvl, race, category, zone, seq = s
-        idx = int(idx)
-        user = int(user)
-        lvl = int(lvl)
-        tt = int(float(tt))
-        tt = int(math.floor((tt - Mintt) / 600 + 0.5))
-        if guild == 'Null':
-            guild = 0
+        if s.user in users:
+            users[s.user] += 1
+            current_lvl = user_lvl[s.user]
+            if not s.lvl >= current_lvl:
+                continue
+            if s.lvl > current_lvl:
+                user_lvl[s.user] = s.lvl
         else:
-            guild = int(guild)
-        if not race in Races:
+            users[s.user] = 1
+            user_lvl[s.user] = s.lvl
+        buf = (s.user, tt, s.guild, s.lvl, Races[s.race], Categories[s.category], Zones[s.zone])
+        buf_string = ','.join([str(x) for x in buf])
+        with open('data/users/{0}'.format(s.user), 'a') as fw:  
+            fw.write(buf_string + '\n')
+    open('data/usersjson_sketch.txt', 'w').write(json.dumps(users))
+
+def sats():
+    # idx, user, tt, guild, lvl, Races[race], Categories[category], Zones[zone], seq
+    from zoneinfo import Zonetypes
+    from logstats import Lk
+    from shutil import rmtree
+    zonetype_total = len(Zonetypes)
+    with open('data/usersjson_sketch.txt') as fp:
+        users_sketch = json.loads(fp.readline())
+    users_sketch = {int(x):users_sketch[x] for x in users_sketch}
+    users = {x:0 for x in users_sketch}
+    # continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max
+    with open('data/zonesjson.txt') as fp:
+        zones = json.loads(fp.readline())
+    zones = {int(x):zones[x] for x in zones}
+    with open('data/scorejson.txt') as fp:
+        lvlscore_dct = json.loads(fp.readline())
+    lvlscore_dct = {int(x):lvlscore_dct[x] for x in lvlscore_dct}
+    def lvlscore(lvl):
+        if lvl in lvlscore_dct:
+            return lvlscore_dct[lvl]
+        else:
+            return 0
+    directory = 'data/users'
+    dw = 'data/trajs'
+    rmtree(dw)
+    os.makedirs(dw)
+    usersdir = os.listdir(directory)
+    totaluser = len(usersdir)
+    for i, userfile in enumerate(usersdir):
+        if i % 1000 == 0:
+            print("{0}/{1}".format(i, totaluser))
+        with open(os.path.join(directory, userfile)) as fp:
+            s = [[int(y) for y in x.strip().split(',')] for x in fp.readlines()]
+        user = int(userfile.split('.')[0])
+        lvl_start = s[0][4]
+        lvl_change = {s[idx][4]:idx for idx in range(len(s)-1) if not s[idx+1][4] == s[idx][4]}
+        if not lvl_change:
             continue
-        if not category in Categories:
+        lvl_range = {lvl for lvl in lvl_change if lvl - 1 in lvl_change}
+        #print(lvl_range)
+        if len(lvl_range) < 5:
             continue
-        if not zone in Zones:
-            continue
-        if user in users:
-            current = ulvl[user]
-            if not lvl >= current:
+        lvl_gain = {lvl:lvlscore(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
+        fw = open(os.path.join(dw, userfile), 'w')
+        previous_zone = 'x'
+        zone_session_length = 0
+        recent_zones = []
+        previous_guild = 0
+        guild_age = 0
+        previous_time = 0
+        session_length = 0
+        regular_length = 0
+        daily_time = 0
+        for idx in range(len(s)):
+            lvl = s[idx][4]
+            if not lvl in lvl_range:
+                continue
+            if s[idx][2] <= Lk - 144 and lvl == 70:
                 continue
             users[user] += 1
-            if lvl > current:
-                ulvl[user] = lvl
-        else:
-            users[user] = 1
-            ulvl[user] = lvl
-        s = (idx, user, tt, guild, lvl, Races[race], Categories[category], Zones[zone], seq)
-        buf = ','.join([str(x) for x in s])
-        with open('data/users/{0}.txt'.format(user), 'a') as fw:  
-            fw.write(buf)
-            fw.write('\n')
-        if idx % 50000 == 0:
-            try:
-                with open('data/usersjson_sketch.txt', 'w') as fw:
-                    fw.write(json.dumps(users))
-            except KeyboardInterrupt:
-                pass
-    with open('data/usersjson_sketch.txt', 'w') as fw:
-        fw.write(json.dumps(users))
+            zone = s[idx][7]
+            zonetype = zones[zone][2]
+            zonelord = zones[zone][3]
+            if zonetype == 2 and zonelord == 3: #alliance zone
+                zonetype = zonetype_total
+            feature_zonetype = zonetype
+            s[idx].append(feature_zonetype)
+            recent_zones.append(zone)
+            if len(recent_zones) > 60: #10 hrs
+                del(recent_zones[0])
+            feature_versatile_zones = len(set(recent_zones))
+            s[idx].append(feature_versatile_zones)
+            if zone == previous_zone:
+                zone_session_length += 1
+            else:
+                zone_session_length = 1
+                previous_zone = zone
+            feature_zone_session_length = zone_session_length
+            s[idx].append(feature_zone_session_length)
 
-def userstats():
+            reward_advancement = lvl_gain[lvl]
+            s[idx].append(reward_advancement)
+            zone = s[idx][7]
+            zonetype = zones[zone][2]
+            zonelord = zones[zone][3]
+            if zonetype == 0: #arena
+                reward_competition = 0.9
+            elif zonetype == 6: #battleground
+                reward_competition = 1.1
+            else:
+                reward_competition = 0
+            s[idx].append(reward_competition)
+            current_guild = s[idx][3]
+            if previous_guild == current_guild and not current_guild == 0:
+                guild_age += 1
+            else:
+                guild_age = 0
+                previous_guild = current_guild
+            in_guild = not current_guild == 0
+            reward_relationship = in_guild * 0.5 + math.sqrt(guild_age) / 150
+            s[idx].append(reward_relationship)
+            if zonetype == 6: #battleground
+                reward_teamwork = 0.5
+            elif zonetype == 3: #dungeon
+                reward_teamwork = 0.7
+            elif zonetype == 2 and zonelord == 3: #alliance zone
+                reward_teamwork = 0.9
+            elif zonetype == 0: #arena
+                reward_teamwork = 1.1
+            # we temproraly ignore raid, due to some tricky connections to get raid label
+            else:
+                reward_teamwork = 0
+            s[idx].append(reward_teamwork)
+            current_time = s[idx][2]
+            if current_time <= previous_time + 1:
+                session_length += 1
+            else:
+                session_length = 1
+            if current_time <= daily_time + 288 and current_time >= daily_time + 132 or daily_time == 0:
+                regular_length += 1
+                daily_time = current_time
+            elif current_time > daily_time + 288:
+                regular_length = 1
+                daily_time = current_time
+            previous_time = current_time
+            reward_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
+            s[idx].append(reward_escapism)
+            fw.write(','.join([str(y) for y in s[idx]]) + '\n')
+        fw.close()
+    with open('data/trajsjson.txt', 'w') as fw:
+        fw.write(json.dumps({x:users[x] for x in users if not users[x] == 0}))
+
+def user_stats():
     with open('data/usersjson_sketch.txt') as fp:
         user_sketch = json.loads(fp.readline())
     power = 1.8
@@ -183,7 +313,7 @@ def userstats():
     #plt.show()
     return lvls_start, lvls_end, lvls_elapses, scores, elapses
 
-def trajectory():
+def traj_stats():
     zonepair = {}
     lvlup = {}
     userlist = os.listdir('data/users')
@@ -247,8 +377,8 @@ def trajectory():
     return locals()
 
 if __name__ == '__main__':
-    zones, cnt, mintt, maxguild = keymatch()
-    #cat_user()
+    #constant_generate()
+    cat_user()
     #s = trajectory()
     #lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
     pass
