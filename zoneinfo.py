@@ -6,52 +6,32 @@ import json
 from logstats import Zones
 from logstats import clear
 
-pp = re.compile(r'<U\+(?P<code>[0-9A-F]{4})>')
-repl = r'\u\g<code>'
-
 Continents = {'Northrend': 0, 'Other': 1, 'Eastern Kingdoms': 2, 'Ouland': 3, 'Kalimdor': 4, 'The Great Sea': 5, 'Outland': 6}
 Areas = {"Quel'Thalas": 0, 'Central Kalimdor': 1, 'Lordaeron': 2, 'Azeroth': 3, 'Northern Kalimdor': 4, 'Khaz Modan': 5, 'Outland': 6, 'The Forbidding Sea': 7, 'Northrend': 8, 'Null': 9, 'Southern Kalimdor': 10, 'The Veiled Sea': 11}
 Zonetypes = {'Arena': 0, 'City': 1, 'Zone': 2, 'Dungeon': 3, 'Transit': 4, 'Sea': 5, 'Battleground': 6, 'Event': 7}
 Lords = {'PvP': 0, 'Contested': 1, 'Horde': 2, 'Alliance': 3, 'Sanctuary': 4}
 
 def zoneattr():
-    fp = open('data/zones.csv')
-    fp.__next__()
-
     continents = {'Null': 0}
     areas = {'Null': 0}
     zonetypes = {'Null': 0}
     lords = {'Null': 0}
-
-    g = csv.reader(fp, delimiter=',', quotechar='"')
-    for s in g:
-        if not s:
-            continue
-        zone, continent, area, alter, subzone, zonetype, size, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max = s
-        zone = re.sub(pp, repl, zone)
-        zone = zone.decode('unicode-escape').encode('utf-8')
-        if not continent in continents:
-            continents[continent] = max(continents.values()) + 1
-        if not area in areas and area:
-            areas[area] = max(areas.values()) + 1
-        if not zonetype in zonetypes:
-            zonetypes[zonetype] = max(zonetypes.values()) + 1
-        if not lord in lords:
-            lords[lord] = max(lords.values()) + 1
-    clear(continents, False)
-    clear(areas, True)
-    clear(zonetypes, False)
-    clear(lords, False)
-    with open('tmp.txt', 'w') as fw:
-        fw.write(str(continents))
-        fw.write('\n')
-        fw.write(str(areas))
-        fw.write('\n')
-        fw.write(str(zonetypes))
-        fw.write('\n')
-        fw.write(str(lords))
-        fw.write('\n')
-    return continents, areas, zonetypes, lords
+    for line in csv.reader(open('data/zones.csv'), delimiter=',', quotechar='"'):
+        s = record(line, style='zone')
+        update(s.continent, continents)
+        update(s.area, areas)
+        update(s.zonetype, zonetypes)
+        update(s.lord, lords)
+    clear(continents, {}, 0, False)
+    clear(areas, {}, 0, True)
+    clear(zonetypes, {}, 0, False)
+    clear(lords, {}, 0, False)
+    with open('constant_zone.txt', 'w') as fw:
+        fw.write('# -*- coding: utf-8 -*-\n\n')
+        fw.write('Continents = {0}\n'.format(str(continents)))
+        fw.write('Areas = {0}\n'.format(str(areas)))
+        fw.write('Zonetypes = {0}\n'.format(zonetypes))
+        fw.write('Lords = {0}\n'.format(lords))
 
 def zonematch():
     fp = open('data/zones.csv')
