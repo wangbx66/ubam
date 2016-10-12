@@ -33,6 +33,10 @@ compiler_bindir=C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin
 flags=-LC:\Users\szheng\AppData\Local\Continuum\Anaconda3
 ```
 
+## To Start With
+
+First download datasets from Game Trace Archive, and supplementary datasets from kaggle. Remove all headers and non-ascii characters (keep escaped unicodes)
+
 ##Sam
 
 UBAM DL
