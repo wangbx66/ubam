@@ -31,12 +31,17 @@ class record:
             idx, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5
         elif style == 'zone':
             zone, continent, area, alter, subzone, zonetype, size, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max = line
-            zone = re.sub(p_sub, p_repl, zone)
-            self.zone = zone.decode('unicode-escape').encode('utf-8')
+            zone_tmp = re.sub(p_sub, p_repl, zone)
+            self.zone = zone_tmp.encode('utf-8').decode('unicode-escape')
             self.continent = continent
-            self.area = area
+            self.area = 'Null' if area == '' else area
             self.zonetype = zonetype
             self.lord = lord
+            self.lvl_entry = int(lvl_entry)
+            self.lvl_npc_min = 1 if 'NA' in lvl_npc_min or 0 == int(lvl_npc_min) else int(lvl_npc_min)
+            self.lvl_npc_max = 100 if 'NA' in lvl_npc_max or 0 == int(lvl_npc_max) else int(lvl_npc_max)
+            self.lvl_rec_min = self.lvl_npc_min if 'NA' in lvl_rec_min or 0 == int(lvl_rec_min) else int(lvl_rec_min)
+            self.lvl_rec_max = self.lvl_npc_max if 'NA' in lvl_rec_max or 0 == int(lvl_rec_max) else int(lvl_rec_max)
 
 def clear(dct, cnt, thres, keep_null=False):
     if thres > 0:
@@ -50,7 +55,7 @@ def clear(dct, cnt, thres, keep_null=False):
     for x in dct:
         dct[x] = keys[dct[x]]
 
-def update(item, dct, cnt={}):
+def update(item, dct, cnt={'Null':0}):
     if not item in dct:
         dct[item] = max(dct.values()) + 1
         cnt[item] = 1
