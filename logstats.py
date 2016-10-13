@@ -2,6 +2,8 @@ import os
 import re
 import math
 import json
+import time
+import datetime
 from shutil import rmtree
 
 p_sub = re.compile(r'<U\+(?P<code>[0-9A-F]{4})>')
@@ -42,6 +44,17 @@ class record:
             self.lvl_npc_max = 100 if 'NA' in lvl_npc_max or 0 == int(lvl_npc_max) else int(lvl_npc_max)
             self.lvl_rec_min = self.lvl_npc_min if 'NA' in lvl_rec_min or 0 == int(lvl_rec_min) else int(lvl_rec_min)
             self.lvl_rec_max = self.lvl_npc_max if 'NA' in lvl_rec_max or 0 == int(lvl_rec_max) else int(lvl_rec_max)
+        elif style == 'zone_clean':
+            continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max = line
+            self.continent = int(continent)
+            self.area = int(area)
+            self.zonetype = int(zonetype)
+            self.lord = int(lord)
+            self.lvl_entry = int(lvl_entry)
+            self.lvl_rec_min = int(lvl_rec_min)
+            self.lvl_rec_max = int(lvl_rec_max)
+            self.lvl_npc_min = int(lvl_npc_min)
+            self.lvl_npc_max = int(lvl_npc_max)
 
 def clear(dct, cnt, thres, keep_null=False):
     if thres > 0:
@@ -97,8 +110,11 @@ def constant_generate():
         fw.write('Categories = {0}\n'.format(str(categories)))
         fw.write('Min_timestamp = {0}\n'.format(min_timestamp))
         fw.write('Max_timestamp = {0}\n'.format(max_timestamp))
-        fw.write('Liching_timestamp = {0}\n'.format(1226552400))
-        fw.write('lichking_tt = {0}\n'.format((1226552400 - min_timestamp) / 600))
+        fw.write('Lichking_date = {0}\n'.format(1226552400))
+        lk_1 = time.mktime(datetime.datetime(year=2008,month=11,day=12,hour=12).timetuple())
+        lk_2 = time.mktime(datetime.datetime(year=2008,month=11,day=14,hour=12).timetuple())
+        fw.write('Lichking_timestamp = {0}\n'.format((int(lk_1), int(lk_2))))
+        fw.write('Lichking_tt = {0}\n'.format((int((lk_1-min_timestamp)/600),int((lk_2-min_timestamp)/600))))
         fw.write('Total_records = {0}\n'.format(line_idx + 1))
         fw.write('Max_guild = {0}\n'.format(max_guild + 1))
         fw.write('Zones = {0}\n'.format(str(zones)))
@@ -144,49 +160,43 @@ def cat_user():
     open('data/usersjson_sketch.txt', 'w').write(json.dumps(users))
 
 def sats():
-    # idx, user, tt, guild, lvl, Races[race], Categories[category], Zones[zone], seq
-    from zoneinfo import Zonetypes
-    from logstats import Lk
+    from constant import Lichking_tt
+    from constant_zone import Zonetypes
+    from constant_zone import Lords
     from shutil import rmtree
-    zonetype_total = len(Zonetypes)
-    with open('data/usersjson_sketch.txt') as fp:
-        users_sketch = json.loads(fp.readline())
+    rival = len(Zonetypes)
+    users_sketch = json.loads(open('data/usersjson_sketch.txt').readline())
     users_sketch = {int(x):users_sketch[x] for x in users_sketch}
     users = {x:0 for x in users_sketch}
-    # continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max
-    with open('data/zonesjson.txt') as fp:
-        zones = json.loads(fp.readline())
-    zones = {int(x):zones[x] for x in zones}
-    with open('data/scorejson.txt') as fp:
-        lvlscore_dct = json.loads(fp.readline())
-    lvlscore_dct = {int(x):lvlscore_dct[x] for x in lvlscore_dct}
+    zones = json.loads(open('data/zonesjson.txt').readline())
+    zones = {int(x):records(zones[x], style=zone_clean) for x in zones}
+    lvl_score_dct = json.loads(open('data/scorejson.txt').readline())
+    lvl_score_dct = {int(x):lvl_score_dct[x] for x in lvl_score_dct}
     def lvlscore(lvl):
-        if lvl in lvlscore_dct:
-            return lvlscore_dct[lvl]
+        if lvl in lvl_score_dct:
+            return lvl_score_dct[lvl]
         else:
             return 0
-    directory = 'data/users'
-    dw = 'data/trajs'
-    rmtree(dw)
-    os.makedirs(dw)
-    usersdir = os.listdir(directory)
-    totaluser = len(usersdir)
-    for i, userfile in enumerate(usersdir):
-        if i % 1000 == 0:
-            print("{0}/{1}".format(i, totaluser))
-        with open(os.path.join(directory, userfile)) as fp:
-            s = [[int(y) for y in x.strip().split(',')] for x in fp.readlines()]
-        user = int(userfile.split('.')[0])
-        lvl_start = s[0][4]
-        lvl_change = {s[idx][4]:idx for idx in range(len(s)-1) if not s[idx+1][4] == s[idx][4]}
+    for dir_name in ['data/trajs_advancing', 'data/trajs_max']
+        rmtree('dir_name')
+        os.makedirs('dir_name')
+    users_dir = os.listdir('data/users')
+    total_user = len(users_dir)
+    for file_idx, user_file in enumerate(users_dir):
+        if file_idx % 10000 == 0:
+            print("file {0}/{1}".format(file_idx, total_user))
+        with open(os.path.join('data/users', userfile)) as fp:
+            records = [record(x, style='clean') for x in fp.readlines()]
+        user = int(user_file)
+        lvl_start = records[0].lvl
+        lvl_change = {records[idx].lvl:idx for idx in range(len(records)-1) if not s[idx+1].lvl == s[idx].lvl}
         if not lvl_change:
             continue
         lvl_range = {lvl for lvl in lvl_change if lvl - 1 in lvl_change}
-        #print(lvl_range)
         if len(lvl_range) < 5:
             continue
-        lvl_gain = {lvl:lvlscore(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
-        fw = open(os.path.join(dw, userfile), 'w')
+        lvl_gain = {lvl:lvl_score(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
+        fw = open(os.path.join('data/trajs_advancing', userfile), 'w')
         previous_zone = 'x'
         zone_session_length = 0
         recent_zones = []
@@ -197,32 +207,34 @@ def sats():
         regular_length = 0
         daily_time = 0
         for idx in range(len(s)):
-            lvl = s[idx][4]
+            # For the day the Lichking update happens
+            if Lichking_tt[0] <= records[idx].tt <= Lichking_tt[1]:
+                continue
+            lvl = records[idx].lvl
             if not lvl in lvl_range:
                 continue
-            if s[idx][2] <= Lk - 144 and lvl == 70:
-                continue
+            # Dictionary users records the number of replays associated to each user
             users[user] += 1
-            zone = s[idx][7]
-            zonetype = zones[zone][2]
-            zonelord = zones[zone][3]
-            if zonetype == 2 and zonelord == 3: #alliance zone
-                zonetype = zonetype_total
-            feature_zonetype = zonetype
-            s[idx].append(feature_zonetype)
+            zone = s[idx].zone
+            continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max = line
+            # Generate additional features
+            zonetype = zones[zone].zonetype
+            zonelord = zones[zone].lord
+            if zonetype == Zonetypes['Zone'] and zonelord == Lords['Alliance']:
+                zonetype = rival
+            s[idx].feature_zonetype = zonetype
             recent_zones.append(zone)
-            if len(recent_zones) > 60: #10 hrs
+            if len(recent_zones) > 60: # i.e. recent 10 hrs
                 del(recent_zones[0])
-            feature_versatile_zones = len(set(recent_zones))
-            s[idx].append(feature_versatile_zones)
+            s[idx].feature_versatile_zones(len(set(recent_zones)))
             if zone == previous_zone:
                 zone_session_length += 1
             else:
                 zone_session_length = 1
                 previous_zone = zone
-            feature_zone_session_length = zone_session_length
-            s[idx].append(feature_zone_session_length)
-
+             = zone_session_length
+            s[idx].feature_zone_session_length(zone_session_length)
+            # Generate satisfactions
             reward_advancement = lvl_gain[lvl]
             s[idx].append(reward_advancement)
             zone = s[idx][7]
@@ -382,8 +394,8 @@ def traj_stats():
     return locals()
 
 if __name__ == '__main__':
-    #constant_generate()
-    cat_user()
+    constant_generate()
+    #cat_user()
     #s = trajectory()
     #lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
     pass
