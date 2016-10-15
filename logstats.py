@@ -189,14 +189,13 @@ def sats():
             records = [record(x, style='clean') for x in fp.readlines()]
         user = int(user_file)
         lvl_start = records[0].lvl
-        lvl_change = {records[idx].lvl:idx for idx in range(len(records)-1) if not s[idx+1].lvl == s[idx].lvl}
+        lvl_change = {s.lvl:idx for idx in range(len(records)-1) if not records[idx+1].lvl == s.lvl}
         if not lvl_change:
             continue
         lvl_range = {lvl for lvl in lvl_change if lvl - 1 in lvl_change}
         if len(lvl_range) < 5:
             continue
         lvl_gain = {lvl:lvl_score(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
-        fw = open(os.path.join('data/trajs_advancing', userfile), 'w')
         previous_zone = 'x'
         zone_session_length = 0
         recent_zones = []
@@ -206,84 +205,83 @@ def sats():
         session_length = 0
         regular_length = 0
         daily_time = 0
-        for idx in range(len(s)):
+        for s in records:
             # For the day the Lichking update happens
-            if Lichking_tt[0] <= records[idx].tt <= Lichking_tt[1]:
+            if Lichking_tt[0] <= s.tt <= Lichking_tt[1]:
                 continue
-            lvl = records[idx].lvl
-            if not lvl in lvl_range:
+            lvl = s.lvl
+            if not (lvl in lvl_range or lvl == 80):
                 continue
+            else if not lvl == 80:
+                fw = open(os.path.join('data/trajs_advancing', userfile), 'a')
+            else:
+                fw = open(os.path.join('data/trajs_max', userfile), 'a')
             # Dictionary users records the number of replays associated to each user
             users[user] += 1
-            zone = s[idx].zone
-            continent, area, zonetype, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max = line
+            zone = s.zone
             # Generate additional features
             zonetype = zones[zone].zonetype
             zonelord = zones[zone].lord
             if zonetype == Zonetypes['Zone'] and zonelord == Lords['Alliance']:
                 zonetype = rival
-            s[idx].feature_zonetype = zonetype
+            s.feature_zonetype = zonetype
             recent_zones.append(zone)
             if len(recent_zones) > 60: # i.e. recent 10 hrs
                 del(recent_zones[0])
-            s[idx].feature_versatile_zones(len(set(recent_zones)))
+            s.feature_versatile_zones = len(set(recent_zones))
             if zone == previous_zone:
                 zone_session_length += 1
             else:
                 zone_session_length = 1
                 previous_zone = zone
-             = zone_session_length
-            s[idx].feature_zone_session_length(zone_session_length)
+            s.feature_zone_session_length = zone_session_length
             # Generate satisfactions
-            reward_advancement = lvl_gain[lvl]
-            s[idx].append(reward_advancement)
-            zone = s[idx][7]
-            zonetype = zones[zone][2]
-            zonelord = zones[zone][3]
-            if zonetype == 0: #arena
+            reward_advancement = lvl_gain[lvl] if not lvl == 80 else 0
+            s.append(reward_advancement)
+            if zonetype == Zonetype['Arena']:
                 reward_competition = 0.9
-            elif zonetype == 6: #battleground
+            elif zonetype == Zonetype['Battleground']:
                 reward_competition = 1.1
             else:
                 reward_competition = 0
-            s[idx].append(reward_competition)
-            current_guild = s[idx][3]
-            if previous_guild == current_guild and not current_guild == 0:
+            s.reward_competition = reward_competition
+            current_guild = s.guild
+            if previous_guild == current_guild and not current_guild == 0: # guild == 0 iff no guild. check class records with style raw
                 guild_age += 1
             else:
                 guild_age = 0
                 previous_guild = current_guild
             in_guild = not current_guild == 0
             reward_relationship = in_guild * 0.5 + math.sqrt(guild_age) / 150
-            s[idx].append(reward_relationship)
-            if zonetype == 6: #battleground
+            s.reward_relationship = reward_teamworkreward_relationship
+            if zonetype == Zonetype['Battleground']:
                 reward_teamwork = 0.5
-            elif zonetype == 3: #dungeon
+            elif zonetype == Zonetype['Dungeon']:
                 reward_teamwork = 0.7
-            elif zonetype == 2 and zonelord == 3: #alliance zone
+            elif zonetype == rival: # zonetype has been modified
                 reward_teamwork = 0.9
-            elif zonetype == 0: #arena
+            elif zonetype == Zonetype['Arena']:
                 reward_teamwork = 1.1
-            # we temproraly ignore raid, due to some tricky connections to get raid label
             else:
-                reward_teamwork = 0
-            s[idx].append(reward_teamwork)
-            current_time = s[idx][2]
+                reward_teamwork = 0 # we temproraly ignore raid, due to some trickiers to get raid label
+            s.reward_teamwork = reward_teamwork
+            current_time = s[idx].tt
             if current_time <= previous_time + 1:
                 session_length += 1
             else:
                 session_length = 1
+            previous_time = current_time
             if current_time <= daily_time + 288 and current_time >= daily_time + 132 or daily_time == 0:
                 regular_length += 1
                 daily_time = current_time
             elif current_time > daily_time + 288:
                 regular_length = 1
                 daily_time = current_time
-            previous_time = current_time
             reward_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
-            s[idx].append(reward_escapism)
-            fw.write(','.join([str(y) for y in s[idx]]) + '\n')
-        fw.close()
+            s.reward_escapism = reward_escapism
+            buf = (s.user, tt, s.guild, s.lvl, s.race, s.category, s.zone, s.feature_zonetype, s.feature_versatile_zones, s.feature_zone_session_length, s.reward_advancement, s.reward_competition, s.reward_relationship, s.reward_teamwork, s.reward_escapism)
+            fw.write(','.join([str(x) for x in buf]) + '\n')
+            fw.close()
     with open('data/trajsjson.txt', 'w') as fw:
         fw.write(json.dumps({x:users[x] for x in users if not users[x] == 0}))
 
