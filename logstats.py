@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import math
 import json
@@ -332,7 +333,7 @@ def user_stats():
     #plt.show()
     return lvls_start, lvls_end, lvls_elapses, scores, elapses
 
-def traj_stats():
+def trajs():
     zonepair = {}
     lvlup = {}
     userlist = os.listdir('data/users')
@@ -396,9 +397,15 @@ def traj_stats():
     return locals()
 
 if __name__ == '__main__':
-    #constant_generate()
-    #cat_user()
-    sats()
-    #s = trajectory()
-    #lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
-    pass
+    if sys.argv[1] == 'constant_generate':
+        constant_generate()
+    elif sys.argv[1] == 'cat_user':
+        cat_user()
+    elif sys.argv[1] == 'sats':
+        sats()
+    elif sys.argv[1] == 'trajs':
+        trajs
+    elif sys.argv[1] == 'user_stats':
+        lvls_start, lvls_end, lvls_elapses, scores, elapses = user_stats()
+    else:
+        exit(0)
