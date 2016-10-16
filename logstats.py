@@ -75,6 +75,11 @@ def update(item, dct, cnt={'Null':0}):
     else:
         cnt[item] += 1
 
+def mkdir(dir_name):
+    if os.path.exists(dir_name):
+        rmtree(dir_name)
+    os.makedirs(dir_name)
+
 def constant_generate():
     '''
     This function should be called once to generate constant.py, which includes several python variable to be imported by other python scripts.
@@ -169,7 +174,7 @@ def sats():
     users_sketch = {int(x):users_sketch[x] for x in users_sketch}
     users = {x:0 for x in users_sketch}
     zones = json.loads(open('data/zonesjson.txt').readline())
-    zones = {int(x):records(zones[x], style=zone_clean) for x in zones}
+    zones = {int(x):record(zones[x], style='zone_clean') for x in zones}
     lvl_score_dct = json.loads(open('data/scorejson.txt').readline())
     lvl_score_dct = {int(x):lvl_score_dct[x] for x in lvl_score_dct}
     def lvlscore(lvl):
@@ -177,15 +182,14 @@ def sats():
             return lvl_score_dct[lvl]
         else:
             return 0
-    for dir_name in ['data/trajs_advancing', 'data/trajs_max']
-        rmtree('dir_name')
-        os.makedirs('dir_name')
+    mkdir('data/trajs_advancing')
+    mkdir('data/trajs_max')
     users_dir = os.listdir('data/users')
     total_user = len(users_dir)
     for file_idx, user_file in enumerate(users_dir):
         if file_idx % 10000 == 0:
             print("file {0}/{1}".format(file_idx, total_user))
-        with open(os.path.join('data/users', userfile)) as fp:
+        with open(os.path.join('data/users', user_file)) as fp:
             records = [record(x, style='clean') for x in fp.readlines()]
         user = int(user_file)
         lvl_start = records[0].lvl
@@ -212,10 +216,10 @@ def sats():
             lvl = s.lvl
             if not (lvl in lvl_range or lvl == 80):
                 continue
-            else if not lvl == 80:
-                fw = open(os.path.join('data/trajs_advancing', userfile), 'a')
+            elif not lvl == 80:
+                fw = open(os.path.join('data/trajs_advancing', user_file), 'a')
             else:
-                fw = open(os.path.join('data/trajs_max', userfile), 'a')
+                fw = open(os.path.join('data/trajs_max', user_file), 'a')
             # Dictionary users records the number of replays associated to each user
             users[user] += 1
             zone = s.zone
@@ -392,8 +396,9 @@ def traj_stats():
     return locals()
 
 if __name__ == '__main__':
-    constant_generate()
+    #constant_generate()
     #cat_user()
+    sats()
     #s = trajectory()
     #lvls_start, lvls_end, lvls_elapses, scores, elapses = userstats()
     pass
