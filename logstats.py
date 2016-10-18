@@ -60,7 +60,7 @@ class record:
 def clear(dct, cnt, thres, keep_null=False):
     if thres > 0:
         for item in cnt:
-            if cnt[item] <= thres:
+            if cnt[item] <= thres and not item == 'Null':
                 del dct[item]
     if 'Null' in dct and not keep_null:
         del dct['Null']
@@ -137,17 +137,22 @@ def cat_user():
     from constant import Races
     from constant import Categories
     from constant import Min_timestamp
+    zones = json.loads(open('data/zonesjson').readline())
+    zones = {int(x):record(zones[x], style='zone_clean') for x in zones}
     rmtree('data/users')
     os.makedirs('data/users')
     user_lvl = {}
     users = {}
+    no_data_zones = set()
     for line_idx, line in enumerate(open('data/wowah_dynamic')):
         if line_idx % 1000000 == 0:
             print("line {0}/{1}".format(line_idx, Total_records))
-            open('data/usersjson_sketch.txt', 'w').write(json.dumps(users))
+            open('data/usersjson_sketch', 'w').write(json.dumps(users))
         s = record(line, style='raw')
         tt = math.floor((s.timestamp - Min_timestamp) / 600 + 0.5)
-        if not (s.zone in Zones and s.race in Races and s.category in Categories):
+        if not s.zone in Zones or not Zones[s.zone] in zones or not s.race in Races or not s.category in Categories:
+            if s.zone in Zones
+            no_data_zones.add(s.zone)
             continue
         if s.user in users:
             users[s.user] += 1
@@ -163,7 +168,10 @@ def cat_user():
         buf_string = ','.join([str(x) for x in buf])
         with open('data/users/{0}'.format(s.user), 'a') as fw:  
             fw.write(buf_string + '\n')
-    open('data/usersjson_sketch.txt', 'w').write(json.dumps(users))
+    open('data/usersjson_sketch', 'w').write(json.dumps(users))
+    print('no data:')
+    for x in no_data_zones:
+        print(x)
 
 def sats():
     from constant import Lichking_tt
@@ -171,14 +179,14 @@ def sats():
     from constant_zone import Lords
     from shutil import rmtree
     rival = len(Zonetypes)
-    users_sketch = json.loads(open('data/usersjson_sketch.txt').readline())
+    users_sketch = json.loads(open('data/usersjson_sketch').readline())
     users_sketch = {int(x):users_sketch[x] for x in users_sketch}
     users = {x:0 for x in users_sketch}
-    zones = json.loads(open('data/zonesjson.txt').readline())
+    zones = json.loads(open('data/zonesjson').readline())
     zones = {int(x):record(zones[x], style='zone_clean') for x in zones}
-    lvl_score_dct = json.loads(open('data/scorejson.txt').readline())
+    lvl_score_dct = json.loads(open('data/scorejson').readline())
     lvl_score_dct = {int(x):lvl_score_dct[x] for x in lvl_score_dct}
-    def lvlscore(lvl):
+    def lvl_score(lvl):
         if lvl in lvl_score_dct:
             return lvl_score_dct[lvl]
         else:
@@ -194,7 +202,7 @@ def sats():
             records = [record(x, style='clean') for x in fp.readlines()]
         user = int(user_file)
         lvl_start = records[0].lvl
-        lvl_change = {s.lvl:idx for idx in range(len(records)-1) if not records[idx+1].lvl == s.lvl}
+        lvl_change = {records[idx].lvl:idx for idx in range(len(records)-1) if not records[idx+1].lvl == records[idx].lvl}
         if not lvl_change:
             continue
         lvl_range = {lvl for lvl in lvl_change if lvl - 1 in lvl_change}
@@ -242,10 +250,10 @@ def sats():
             s.feature_zone_session_length = zone_session_length
             # Generate satisfactions
             reward_advancement = lvl_gain[lvl] if not lvl == 80 else 0
-            s.append(reward_advancement)
-            if zonetype == Zonetype['Arena']:
+            s.reward_advancement = reward_advancement
+            if zonetype == Zonetypes['Arena']:
                 reward_competition = 0.9
-            elif zonetype == Zonetype['Battleground']:
+            elif zonetype == Zonetypes['Battleground']:
                 reward_competition = 1.1
             else:
                 reward_competition = 0
@@ -258,19 +266,19 @@ def sats():
                 previous_guild = current_guild
             in_guild = not current_guild == 0
             reward_relationship = in_guild * 0.5 + math.sqrt(guild_age) / 150
-            s.reward_relationship = reward_teamworkreward_relationship
-            if zonetype == Zonetype['Battleground']:
+            s.reward_relationship = reward_relationship
+            if zonetype == Zonetypes['Battleground']:
                 reward_teamwork = 0.5
-            elif zonetype == Zonetype['Dungeon']:
+            elif zonetype == Zonetypes['Dungeon']:
                 reward_teamwork = 0.7
             elif zonetype == rival: # zonetype has been modified
                 reward_teamwork = 0.9
-            elif zonetype == Zonetype['Arena']:
+            elif zonetype == Zonetypes['Arena']:
                 reward_teamwork = 1.1
             else:
                 reward_teamwork = 0 # we temproraly ignore raid, due to some trickiers to get raid label
             s.reward_teamwork = reward_teamwork
-            current_time = s[idx].tt
+            current_time = s.tt
             if current_time <= previous_time + 1:
                 session_length += 1
             else:
@@ -284,14 +292,14 @@ def sats():
                 daily_time = current_time
             reward_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
             s.reward_escapism = reward_escapism
-            buf = (s.user, tt, s.guild, s.lvl, s.race, s.category, s.zone, s.feature_zonetype, s.feature_versatile_zones, s.feature_zone_session_length, s.reward_advancement, s.reward_competition, s.reward_relationship, s.reward_teamwork, s.reward_escapism)
+            buf = (s.user, s.tt, s.guild, s.lvl, s.race, s.category, s.zone, s.feature_zonetype, s.feature_versatile_zones, s.feature_zone_session_length, s.reward_advancement, s.reward_competition, s.reward_relationship, s.reward_teamwork, s.reward_escapism)
             fw.write(','.join([str(x) for x in buf]) + '\n')
             fw.close()
-    with open('data/trajsjson.txt', 'w') as fw:
+    with open('data/trajsjson', 'w') as fw:
         fw.write(json.dumps({x:users[x] for x in users if not users[x] == 0}))
 
 def user_stats():
-    with open('data/usersjson_sketch.txt') as fp:
+    with open('data/usersjson_sketch') as fp:
         user_sketch = json.loads(fp.readline())
     power = 1.8
     scores = []
@@ -323,7 +331,7 @@ def user_stats():
         scores.append(score)
         if score / elapse > 1: # but this will exclude those addicted
             users[user.split('.')[0]] = user_sketch[user.split('.')[0]]
-    with open('data/usersjson.txt', 'w') as fw:
+    with open('data/usersjson', 'w') as fw:
         fw.write(json.dumps(users))
     #plt.hist(lvls_start, bins=80)
     #plt.hist(lvls_end, bins=80)
@@ -334,78 +342,80 @@ def user_stats():
     return lvls_start, lvls_end, lvls_elapses, scores, elapses
 
 def trajs():
+    '''
+    This generates scorejson which indicate the difficulties of leveling up at each level, and data/transaction/transactionjson* which records the popular transactions; only those popular transactions are served as candidate actions.
+    '''
+    from constant import Zones
     zonepair = {}
     lvlup = {}
     userlist = os.listdir('data/users')
-    for iuser, user in enumerate(userlist):
-        if iuser % 1000 == 0:
-            print(iuser)
+    for user_idx, user in enumerate(userlist):
+        if user_idx % 10000 == 0:
+            print(user_idx)
         with open(os.path.join('data/users', user)) as fp:
-            for idx, line in enumerate(fp):
-                if idx == 0:
-                    previous_zone = int(line.strip().split(',')[7])
-                    previous_lvl = int(line.strip().split(',')[4])
-                    starting_lvl = previous_lvl
+            for line_idx, line in enumerate(fp):
+                s = record(line, style='clean')
+                if line_idx == 0:
+                    previous_zone = s.zone
+                    previous_lvl = s.lvl
+                    starting_lvl = s.lvl
                     cnt = 0
-                zone = int(line.strip().split(',')[7])
-                lvl = int(line.strip().split(',')[4])
-                if not zone == previous_zone:
-                    if (previous_zone, zone) in zonepair:
-                        zonepair[(previous_zone, zone)] += 1
+                lvl = s.lvl
+                if not s.zone == previous_zone:
+                    if (previous_zone, s.zone) in zonepair:
+                        zonepair[(previous_zone, s.zone)] += 1
                     else:
-                        zonepair[(previous_zone, zone)] = 1
+                        zonepair[(previous_zone, s.zone)] = 1
                     if previous_zone in zonepair:
                         zonepair[previous_zone] += 1
                     else:
                         zonepair[previous_zone] = 1
-                    previous_zone = zone
+                    previous_zone = s.zone
                 if previous_lvl > starting_lvl or previous_lvl == 1:
                     cnt += 1
-                    if lvl > previous_lvl:
+                    if s.lvl > previous_lvl:
                         if previous_lvl in lvlup:
                             lvlup[previous_lvl][0] += 1
                             lvlup[previous_lvl][1] += cnt
                             cnt = 0
                         else:
                             lvlup[previous_lvl] = [1, cnt]
-                if not lvl == previous_lvl:
-                    previous_lvl = lvl
+                if not s.lvl == previous_lvl:
+                    previous_lvl = s.lvl
     lvlscore = {x: lvlup[x][1] / lvlup[x][0] for x in lvlup}
-    with open('data/scorejson.txt', 'w') as fw:
+    with open('data/scorejson', 'w') as fw:
         fw.write(json.dumps(lvlscore))
 
     for threshold in range(1,20):
         pairs = [x for x in zonepair if type(x) is tuple and zonepair[x]/zonepair[x[0]] > 0.01 * threshold]
         transaction = {}
+        print(threshold, len(pairs))
         for x in pairs:
             if x[0] in transaction:
                 transaction[x[0]].append(x[1])
             else:
                 transaction[x[0]] = [x[1]]
-        with open('data/transactionjson{0}.txt'.format(threshold), 'w') as fw:
+        mkdir('data/transaction')
+        with open('data/transaction/transactionjson{0}'.format(threshold), 'w') as fw:
             fw.write(json.dumps(transaction))
         avg = sum(len(transaction[x]) for x in transaction)/len(transaction)
-        print(threshold, len(transaction), len(Zones), avg)
+        print('threshold {0}, transactions {1}, #zones {2}/{3} avg {4}'.format(0.01 * threshold, len(transaction), len([x for x in zonepair if not type(x) is tuple]), len(Zones), avg))
         for zone in Zones:
             if not Zones[zone] in transaction:
-                try:
-                    print(zonepair[zone])
-                    print("should never print this lolol")
-                except:
-                    print('never appeared')
-                print(Zones[zone], zone)
-    return locals()
+                #print(zone) # for debug use only; avoid populate the console
+                pass
+    return transaction
 
 if __name__ == '__main__':
     if sys.argv[1] == 'constant_generate':
         constant_generate()
     elif sys.argv[1] == 'cat_user':
         cat_user()
+    elif sys.argv[1] == 'trajs':
+        transactions = trajs()
     elif sys.argv[1] == 'sats':
         sats()
-    elif sys.argv[1] == 'trajs':
-        trajs
     elif sys.argv[1] == 'user_stats':
         lvls_start, lvls_end, lvls_elapses, scores, elapses = user_stats()
     else:
-        exit(0)
+        assert(0)
