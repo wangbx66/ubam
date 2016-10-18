@@ -151,8 +151,8 @@ def cat_user():
         s = record(line, style='raw')
         tt = math.floor((s.timestamp - Min_timestamp) / 600 + 0.5)
         if not s.zone in Zones or not Zones[s.zone] in zones or not s.race in Races or not s.category in Categories:
-            if s.zone in Zones
-            no_data_zones.add(s.zone)
+            if s.zone in Zones:
+                no_data_zones.add(s.zone)
             continue
         if s.user in users:
             users[s.user] += 1
@@ -385,21 +385,19 @@ def trajs():
     lvlscore = {x: lvlup[x][1] / lvlup[x][0] for x in lvlup}
     with open('data/scorejson', 'w') as fw:
         fw.write(json.dumps(lvlscore))
-
+    mkdir('data/transaction')
     for threshold in range(1,20):
         pairs = [x for x in zonepair if type(x) is tuple and zonepair[x]/zonepair[x[0]] > 0.01 * threshold]
         transaction = {}
-        print(threshold, len(pairs))
         for x in pairs:
             if x[0] in transaction:
                 transaction[x[0]].append(x[1])
             else:
                 transaction[x[0]] = [x[1]]
-        mkdir('data/transaction')
         with open('data/transaction/transactionjson{0}'.format(threshold), 'w') as fw:
             fw.write(json.dumps(transaction))
         avg = sum(len(transaction[x]) for x in transaction)/len(transaction)
-        print('threshold {0}, transactions {1}, #zones {2}/{3} avg {4}'.format(0.01 * threshold, len(transaction), len([x for x in zonepair if not type(x) is tuple]), len(Zones), avg))
+        print('threshold {0}, transactions {1}, #zones {2}/{3} total {4} avg {5}'.format(0.01 * threshold, len(transaction), len([x for x in zonepair if not type(x) is tuple]), len(Zones), len(pairs), avg))
         for zone in Zones:
             if not Zones[zone] in transaction:
                 #print(zone) # for debug use only; avoid populate the console
