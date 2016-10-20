@@ -1,16 +1,19 @@
 import os
+import sys
 import math
 import pickle
 import json
 import time
 import logging
 from itertools import islice
+from shutil import rmtree
 
 import numpy as np
 import h5py
 
-import sys
-sys.setrecursionlimit(10000)
+from constant import Lichking_tt
+from constant_zone import Zonetypes
+from constant_zone import Lords
 
 class filter:
     def __init__(self, name, condition):
@@ -34,24 +37,22 @@ class filter:
             fw.write(json.dumps({x:self.dct[x] for x in self.dct if not self.dct[x] == 0}))
 
 def advancing(s, lvl_range):
-    return s.lvl == 80 and s.lvl in lvl_range
+    return (s.lvl < 70 and s.tt < Lichking_tt[0]) or (s.lvl < 80 and s.tt > lichking_tt[1]) and s.lvl in lvl_range
 
 def max_(s, lvl_range):
-    return s.lvl < 80 and s.lvl in lvl_range
+    return (s.lvl == 70 and s.tt < Lichking_tt[0]) or (s.lvl == 80 and s.tt > lichking_tt[1])
 
 def priest(s, lvl_range):
-    return s.category == Categories['Priest']
+    return advancing(s, lvl_range) and s.category == Categories['Priest']
 
 def warrior(s, lvl_range):
-    return s.category == Categories['Warrior']
+    return advancing(s, lvl_range) and s.category == Categories['Warrior']
 
 def hunter(s, lvl_range):
-    return s.category == Categories['Hunter']
+    return advancing(s, lvl_range) and s.category == Categories['Hunter']
 
 def sats():
-    from constant import Lichking_tt
-    from constant_zone import Zonetypes
-    from constant_zone import Lords
+    
     rival = len(Zonetypes)
     users_sketch = json.loads(open('data/usersjson_sketch').readline())
     users_sketch = {int(x):users_sketch[x] for x in users_sketch}
