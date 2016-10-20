@@ -11,7 +11,10 @@ from shutil import rmtree
 import numpy as np
 import h5py
 
+from logstats import record
+from logstats import mkdir
 from constant import Lichking_tt
+from constant import Categories
 from constant_zone import Zonetypes
 from constant_zone import Lords
 
@@ -30,17 +33,17 @@ class filter:
     def write(self, fn, buf):
         if self.active:
             with open(os.path.join('data/trajs_{0}'.format(self.name), fn), 'a') as fw:
-                fw.write(buf + '\n')
+                fw.write(','.join([str(x) for x in buf]) + '\n')
 
-    def close(self)
+    def close(self):
         with open('data/trajsjson_{0}'.format(self.name), 'w') as fw:
             fw.write(json.dumps({x:self.dct[x] for x in self.dct if not self.dct[x] == 0}))
 
 def advancing(s, lvl_range):
-    return (s.lvl < 70 and s.tt < Lichking_tt[0]) or (s.lvl < 80 and s.tt > lichking_tt[1]) and s.lvl in lvl_range
+    return ((s.lvl < 70 and s.tt < Lichking_tt[0]) or (s.lvl < 80 and s.tt > Lichking_tt[1])) and s.lvl in lvl_range
 
 def max_(s, lvl_range):
-    return (s.lvl == 70 and s.tt < Lichking_tt[0]) or (s.lvl == 80 and s.tt > lichking_tt[1])
+    return (s.lvl == 70 and s.tt < Lichking_tt[0]) or (s.lvl == 80 and s.tt > Lichking_tt[1])
 
 def priest(s, lvl_range):
     return advancing(s, lvl_range) and s.category == Categories['Priest']
@@ -52,7 +55,6 @@ def hunter(s, lvl_range):
     return advancing(s, lvl_range) and s.category == Categories['Hunter']
 
 def sats():
-    
     rival = len(Zonetypes)
     users_sketch = json.loads(open('data/usersjson_sketch').readline())
     users_sketch = {int(x):users_sketch[x] for x in users_sketch}
@@ -99,43 +101,39 @@ def sats():
         regular_length = 0
         daily_time = 0
         for s in records:
-            # For the day the Lichking update happens
-            if Lichking_tt[0] <= s.tt <= Lichking_tt[1]:
-                continue
+            # For the day the Lichking update happens (no longer needed under the filter system)
+            #if Lichking_tt[0] <= s.tt <= Lichking_tt[1]:
+            #    continue
+            #if not lvl == 80 and lvl in lvl_range:
+            #    fw = open(os.path.join('data/trajs_advancing', user_file), 'a')
+            #    users_advancing[user] += 1
+            #elif lvl == 80:
+            #    fw = open(os.path.join('data/trajs_max', user_file), 'a')
+            #    users_max[user] += 1
+            #else:
+            #    continue
             for ff in filters:
-                ff.filter(s)
+                ff.filter(s, lvl_range)
             if not any(ff.active for ff in filters):
                 continue
-            if not lvl == 80 and lvl in lvl_range:
-                fw = open(os.path.join('data/trajs_advancing', user_file), 'a')
-                users_advancing[user] += 1
-            elif lvl == 80:
-                fw = open(os.path.join('data/trajs_max', user_file), 'a')
-                users_max[user] += 1
-            else:
-                continue
-            # Dictionary users records the number of replays associated to each user
-            
-            lvl = s.lvl
-            zone = s.zone
             # Generate additional features
-            zonetype = zones[zone].zonetype
-            zonelord = zones[zone].lord
+            zonetype = zones[s.zone].zonetype
+            zonelord = zones[s.zone].lord
             if zonetype == Zonetypes['Zone'] and zonelord == Lords['Alliance']:
                 zonetype = rival
             s.feature_zonetype = zonetype
-            recent_zones.append(zone)
+            recent_zones.append(s.zone)
             if len(recent_zones) > 60: # i.e. recent 10 hrs
                 del(recent_zones[0])
             s.feature_versatile_zones = len(set(recent_zones))
-            if zone == previous_zone:
+            if s.zone == previous_zone:
                 zone_session_length += 1
             else:
                 zone_session_length = 1
-                previous_zone = zone
+                previous_zone = s.zone
             s.feature_zone_session_length = zone_session_length
             # Generate satisfactions
-            reward_advancement = lvl_gain[lvl] if not lvl == 80 else 0
+            reward_advancement = lvl_gain[s.lvl] if s.lvl in lvl_gain else 0
             s.reward_advancement = reward_advancement
             if zonetype == Zonetypes['Arena']:
                 reward_competition = 0.9
@@ -178,13 +176,12 @@ def sats():
                 daily_time = current_time
             reward_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
             s.reward_escapism = reward_escapism
+            # Writing the newly generated data
             buf = (s.user, s.tt, s.guild, s.lvl, s.race, s.category, s.zone, s.feature_zonetype, s.feature_versatile_zones, s.feature_zone_session_length, s.reward_advancement, s.reward_competition, s.reward_relationship, s.reward_teamwork, s.reward_escapism)
-            fw.write(','.join([str(x) for x in buf]) + '\n')
-            fw.close()
-    with open('data/trajsjson_advancing', 'w') as fw:
-        fw.write(json.dumps({x:users_advancing[x] for x in users_advancing if not users_advancing[x] == 0}))
-    with open('data/trajsjson_max', 'w') as fw:
-        fw.write(json.dumps({x:users_max[x] for x in users_max if not users_max[x] == 0}))
+            for ff in filters:
+                ff.write(user_file, buf)
+    for ff in filters:
+        ff.close()
 
 def frames(num_frames=10, skip_frames=4, trajsjson='data/trajsjson.txt', rng=np.random.RandomState(123456), flt=None):
     num_cat_feature = 5
@@ -342,6 +339,6 @@ def hdf(path='data/episodes.hdf', batch_size=32, num_batch=1000):
         
 
 if __name__ == "__main__":
-    pass
-    hdf_dump(size=1000000)
+    sats()
+    #hdf_dump(size=1000000)
     

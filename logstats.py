@@ -6,7 +6,6 @@ import json
 import time
 import datetime
 from shutil import rmtree
-from constant import categories
 
 p_sub = re.compile(r'<U\+(?P<code>[0-9A-F]{4})>')
 p_repl = r'\u\g<code>'
@@ -290,8 +289,6 @@ if __name__ == '__main__':
         cat_user()
     elif sys.argv[1] == 'trajs':
         transactions = trajs()
-    elif sys.argv[1] == 'sats':
-        sats()
     elif sys.argv[1] == 'user_stats':
         lvls_start, lvls_end, lvls_elapses, scores, elapses = user_stats()
     else:
