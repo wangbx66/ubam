@@ -6,6 +6,7 @@ import json
 import time
 import datetime
 from shutil import rmtree
+from constant import categories
 
 p_sub = re.compile(r'<U\+(?P<code>[0-9A-F]{4})>')
 p_repl = r'\u\g<code>'
@@ -173,130 +174,71 @@ def cat_user():
     for x in no_data_zones:
         print(x)
 
-def sats():
-    from constant import Lichking_tt
-    from constant_zone import Zonetypes
-    from constant_zone import Lords
-    from shutil import rmtree
-    rival = len(Zonetypes)
-    users_sketch = json.loads(open('data/usersjson_sketch').readline())
-    users_sketch = {int(x):users_sketch[x] for x in users_sketch}
-    users = {x:0 for x in users_sketch}
-    zones = json.loads(open('data/zonesjson').readline())
-    zones = {int(x):record(zones[x], style='zone_clean') for x in zones}
-    lvl_score_dct = json.loads(open('data/scorejson').readline())
-    lvl_score_dct = {int(x):lvl_score_dct[x] for x in lvl_score_dct}
-    def lvl_score(lvl):
-        if lvl in lvl_score_dct:
-            return lvl_score_dct[lvl]
-        else:
-            return 0
-    mkdir('data/trajs_advancing')
-    mkdir('data/trajs_max')
-    users_dir = os.listdir('data/users')
-    total_user = len(users_dir)
-    for file_idx, user_file in enumerate(users_dir):
-        if file_idx % 10000 == 0:
-            print("file {0}/{1}".format(file_idx, total_user))
-        with open(os.path.join('data/users', user_file)) as fp:
-            records = [record(x, style='clean') for x in fp.readlines()]
-        user = int(user_file)
-        lvl_start = records[0].lvl
-        lvl_change = {records[idx].lvl:idx for idx in range(len(records)-1) if not records[idx+1].lvl == records[idx].lvl}
-        if not lvl_change:
-            continue
-        lvl_range = {lvl for lvl in lvl_change if lvl - 1 in lvl_change}
-        if len(lvl_range) < 5:
-            continue
-        lvl_gain = {lvl:lvl_score(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
-        previous_zone = 'x'
-        zone_session_length = 0
-        recent_zones = []
-        previous_guild = 0
-        guild_age = 0
-        previous_time = 0
-        session_length = 0
-        regular_length = 0
-        daily_time = 0
-        for s in records:
-            # For the day the Lichking update happens
-            if Lichking_tt[0] <= s.tt <= Lichking_tt[1]:
-                continue
-            lvl = s.lvl
-            if not (lvl in lvl_range or lvl == 80):
-                continue
-            elif not lvl == 80:
-                fw = open(os.path.join('data/trajs_advancing', user_file), 'a')
+def trajs():
+    '''
+    This generates scorejson which indicate the difficulties of leveling up at each level, and data/transaction/transactionjson* which records the popular transactions; only those popular transactions are served as candidate actions.
+    '''
+    from constant import Zones
+    zonepair = {}
+    lvlup = {}
+    userlist = os.listdir('data/users')
+    for user_idx, user in enumerate(userlist):
+        if user_idx % 10000 == 0:
+            print(user_idx)
+        with open(os.path.join('data/users', user)) as fp:
+            for line_idx, line in enumerate(fp):
+                s = record(line, style='clean')
+                if line_idx == 0:
+                    previous_zone = s.zone
+                    previous_lvl = s.lvl
+                    starting_lvl = s.lvl
+                    cnt = 0
+                lvl = s.lvl
+
+                if not s.zone == previous_zone:
+                    if (previous_zone, s.zone) in zonepair:
+                        zonepair[(previous_zone, s.zone)] += 1
+                    else:
+                        zonepair[(previous_zone, s.zone)] = 1
+                    if previous_zone in zonepair:
+                        zonepair[previous_zone] += 1
+                    else:
+                        zonepair[previous_zone] = 1
+                    previous_zone = s.zone
+
+                if previous_lvl > starting_lvl or previous_lvl == 1:
+                    cnt += 1
+                    if s.lvl > previous_lvl:
+                        if previous_lvl in lvlup:
+                            lvlup[previous_lvl][0] += 1
+                            lvlup[previous_lvl][1] += cnt
+                            cnt = 0
+                        else:
+                            lvlup[previous_lvl] = [1, cnt]
+                if not s.lvl == previous_lvl:
+                    previous_lvl = s.lvl
+    lvlscore = {x: lvlup[x][1] / lvlup[x][0] for x in lvlup}
+    with open('data/scorejson', 'w') as fw:
+        fw.write(json.dumps(lvlscore))
+    mkdir('data/transaction')
+    for threshold in range(1,20):
+        pairs = [x for x in zonepair if type(x) is tuple and zonepair[x]/zonepair[x[0]] > 0.01 * threshold]
+        transaction = {}
+        for x in pairs:
+            if x[0] in transaction:
+                transaction[x[0]].append(x[1])
             else:
-                fw = open(os.path.join('data/trajs_max', user_file), 'a')
-            # Dictionary users records the number of replays associated to each user
-            users[user] += 1
-            zone = s.zone
-            # Generate additional features
-            zonetype = zones[zone].zonetype
-            zonelord = zones[zone].lord
-            if zonetype == Zonetypes['Zone'] and zonelord == Lords['Alliance']:
-                zonetype = rival
-            s.feature_zonetype = zonetype
-            recent_zones.append(zone)
-            if len(recent_zones) > 60: # i.e. recent 10 hrs
-                del(recent_zones[0])
-            s.feature_versatile_zones = len(set(recent_zones))
-            if zone == previous_zone:
-                zone_session_length += 1
-            else:
-                zone_session_length = 1
-                previous_zone = zone
-            s.feature_zone_session_length = zone_session_length
-            # Generate satisfactions
-            reward_advancement = lvl_gain[lvl] if not lvl == 80 else 0
-            s.reward_advancement = reward_advancement
-            if zonetype == Zonetypes['Arena']:
-                reward_competition = 0.9
-            elif zonetype == Zonetypes['Battleground']:
-                reward_competition = 1.1
-            else:
-                reward_competition = 0
-            s.reward_competition = reward_competition
-            current_guild = s.guild
-            if previous_guild == current_guild and not current_guild == 0: # guild == 0 iff no guild. check class records with style raw
-                guild_age += 1
-            else:
-                guild_age = 0
-                previous_guild = current_guild
-            in_guild = not current_guild == 0
-            reward_relationship = in_guild * 0.5 + math.sqrt(guild_age) / 150
-            s.reward_relationship = reward_relationship
-            if zonetype == Zonetypes['Battleground']:
-                reward_teamwork = 0.5
-            elif zonetype == Zonetypes['Dungeon']:
-                reward_teamwork = 0.7
-            elif zonetype == rival: # zonetype has been modified
-                reward_teamwork = 0.9
-            elif zonetype == Zonetypes['Arena']:
-                reward_teamwork = 1.1
-            else:
-                reward_teamwork = 0 # we temproraly ignore raid, due to some trickiers to get raid label
-            s.reward_teamwork = reward_teamwork
-            current_time = s.tt
-            if current_time <= previous_time + 1:
-                session_length += 1
-            else:
-                session_length = 1
-            previous_time = current_time
-            if current_time <= daily_time + 288 and current_time >= daily_time + 132 or daily_time == 0:
-                regular_length += 1
-                daily_time = current_time
-            elif current_time > daily_time + 288:
-                regular_length = 1
-                daily_time = current_time
-            reward_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
-            s.reward_escapism = reward_escapism
-            buf = (s.user, s.tt, s.guild, s.lvl, s.race, s.category, s.zone, s.feature_zonetype, s.feature_versatile_zones, s.feature_zone_session_length, s.reward_advancement, s.reward_competition, s.reward_relationship, s.reward_teamwork, s.reward_escapism)
-            fw.write(','.join([str(x) for x in buf]) + '\n')
-            fw.close()
-    with open('data/trajsjson', 'w') as fw:
-        fw.write(json.dumps({x:users[x] for x in users if not users[x] == 0}))
+                transaction[x[0]] = [x[1]]
+        with open('data/transaction/transactionjson{0}'.format(threshold), 'w') as fw:
+            fw.write(json.dumps(transaction))
+        avg = sum(len(transaction[x]) for x in transaction)/len(transaction)
+        print('threshold {0}, transactions {1}, #zones {2}/{3} total {4} avg {5}'.format(0.01 * threshold, len(transaction), len([x for x in zonepair if not type(x) is tuple]), len(Zones), len(pairs), avg))
+
+        for zone in Zones:
+            if not Zones[zone] in transaction:
+                #print(zone) # for debug use only; avoid populate the console
+                pass
+    return transaction
 
 def user_stats():
     with open('data/usersjson_sketch') as fp:
@@ -340,69 +282,6 @@ def user_stats():
     #plt.scatter([min(x, 15000) for x in elapses], scores)
     #plt.show()
     return lvls_start, lvls_end, lvls_elapses, scores, elapses
-
-def trajs():
-    '''
-    This generates scorejson which indicate the difficulties of leveling up at each level, and data/transaction/transactionjson* which records the popular transactions; only those popular transactions are served as candidate actions.
-    '''
-    from constant import Zones
-    zonepair = {}
-    lvlup = {}
-    userlist = os.listdir('data/users')
-    for user_idx, user in enumerate(userlist):
-        if user_idx % 10000 == 0:
-            print(user_idx)
-        with open(os.path.join('data/users', user)) as fp:
-            for line_idx, line in enumerate(fp):
-                s = record(line, style='clean')
-                if line_idx == 0:
-                    previous_zone = s.zone
-                    previous_lvl = s.lvl
-                    starting_lvl = s.lvl
-                    cnt = 0
-                lvl = s.lvl
-                if not s.zone == previous_zone:
-                    if (previous_zone, s.zone) in zonepair:
-                        zonepair[(previous_zone, s.zone)] += 1
-                    else:
-                        zonepair[(previous_zone, s.zone)] = 1
-                    if previous_zone in zonepair:
-                        zonepair[previous_zone] += 1
-                    else:
-                        zonepair[previous_zone] = 1
-                    previous_zone = s.zone
-                if previous_lvl > starting_lvl or previous_lvl == 1:
-                    cnt += 1
-                    if s.lvl > previous_lvl:
-                        if previous_lvl in lvlup:
-                            lvlup[previous_lvl][0] += 1
-                            lvlup[previous_lvl][1] += cnt
-                            cnt = 0
-                        else:
-                            lvlup[previous_lvl] = [1, cnt]
-                if not s.lvl == previous_lvl:
-                    previous_lvl = s.lvl
-    lvlscore = {x: lvlup[x][1] / lvlup[x][0] for x in lvlup}
-    with open('data/scorejson', 'w') as fw:
-        fw.write(json.dumps(lvlscore))
-    mkdir('data/transaction')
-    for threshold in range(1,20):
-        pairs = [x for x in zonepair if type(x) is tuple and zonepair[x]/zonepair[x[0]] > 0.01 * threshold]
-        transaction = {}
-        for x in pairs:
-            if x[0] in transaction:
-                transaction[x[0]].append(x[1])
-            else:
-                transaction[x[0]] = [x[1]]
-        with open('data/transaction/transactionjson{0}'.format(threshold), 'w') as fw:
-            fw.write(json.dumps(transaction))
-        avg = sum(len(transaction[x]) for x in transaction)/len(transaction)
-        print('threshold {0}, transactions {1}, #zones {2}/{3} total {4} avg {5}'.format(0.01 * threshold, len(transaction), len([x for x in zonepair if not type(x) is tuple]), len(Zones), len(pairs), avg))
-        for zone in Zones:
-            if not Zones[zone] in transaction:
-                #print(zone) # for debug use only; avoid populate the console
-                pass
-    return transaction
 
 if __name__ == '__main__':
     if sys.argv[1] == 'constant_generate':
