@@ -178,6 +178,7 @@ def trajs():
     This generates scorejson which indicate the difficulties of leveling up at each level, and data/transaction/transactionjson* which records the popular transactions; only those popular transactions are served as candidate actions.
     '''
     from constant import Zones
+    from constant import Lichking_tt
     zonepair = {}
     lvlup = {}
     userlist = os.listdir('data/users')
@@ -206,7 +207,8 @@ def trajs():
                     previous_zone = s.zone
 
                 if previous_lvl > starting_lvl or previous_lvl == 1:
-                    cnt += 1
+                    if not (s.tt < Lichking_tt[1] and previous_lvl == 70):
+                        cnt += 1
                     if s.lvl > previous_lvl:
                         if previous_lvl in lvlup:
                             lvlup[previous_lvl][0] += 1
@@ -232,7 +234,6 @@ def trajs():
             fw.write(json.dumps(transaction))
         avg = sum(len(transaction[x]) for x in transaction)/len(transaction)
         print('threshold {0}, transactions {1}, #zones {2}/{3} total {4} avg {5}'.format(0.01 * threshold, len(transaction), len([x for x in zonepair if not type(x) is tuple]), len(Zones), len(pairs), avg))
-
         for zone in Zones:
             if not Zones[zone] in transaction:
                 #print(zone) # for debug use only; avoid populate the console

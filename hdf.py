@@ -85,12 +85,22 @@ def sats():
         user = int(user_file)
         lvl_start = records[0].lvl
         lvl_change = {records[idx].lvl:idx for idx in range(len(records)-1) if not records[idx+1].lvl == records[idx].lvl}
+        # If the user has experienced the lichking update, we take the update time, and the tiem when the user reaches lvl 70, whichever is chronological larger.
+        lk_idx = [idx for idx in range(len(records)-1) if records[idx+1].tt > (Lichking_tt[0]) and records[idx].tt <= (Lichking_tt[0])]
+        if 69 in lvl_change and 70 in lvl_change:
+            lk_idx.append(lvl_change[69])
         if not lvl_change:
             continue
         lvl_range = {lvl for lvl in lvl_change if lvl - 1 in lvl_change}
         if len(lvl_range) < 5:
             continue
-        lvl_gain = {lvl:lvl_score(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range}
+        # lvl -> advancement value gain ON lvl
+        lvl_gain = {lvl:lvl_score(lvl)/(lvl_change[lvl]-lvl_change[lvl-1]) for lvl in lvl_range if not lvl == 70}
+        if 70 in lvl_range:
+            if max(lk_idx) >= lvl_change[70]:
+                print(user_file, lk_idx, lvl_change)
+                continue
+            lvl_gain[70] = lvl_score(70)/(lvl_change[70]-max(lk_idx))
         previous_zone = 'x'
         zone_session_length = 0
         recent_zones = []
@@ -133,7 +143,7 @@ def sats():
                 previous_zone = s.zone
             s.feature_zone_session_length = zone_session_length
             # Generate satisfactions
-            reward_advancement = lvl_gain[s.lvl] if s.lvl in lvl_gain else 0
+            reward_advancement = lvl_gain[s.lvl] if s.lvl in lvl_gain else 0 # those s.lvl not in lvl_gain can only be 70 or 80
             s.reward_advancement = reward_advancement
             if zonetype == Zonetypes['Arena']:
                 reward_competition = 0.9
@@ -183,16 +193,17 @@ def sats():
     for ff in filters:
         ff.close()
 
-def frames(num_frames=10, skip_frames=4, trajsjson='data/trajsjson.txt', rng=np.random.RandomState(123456), flt=None):
+def frames(num_frames=10, skip_frames=4, name='advancing', flt=None):
     num_cat_feature = 5
     num_ord_feature = 3
-    with open('data/zonesjson.txt') as fp:
+    with open('data/zonesjson') as fp:
         zones = json.loads(fp.readline())
-        lvls = json.loads(fp.readline())
-    with open('data/transactionjson10.txt') as fp:
-        transactions = json.loads(fp.readline())
     zones = {int(x):zones[x] for x in zones}
+    with open('data/lvlsjson') as fp:
+        lvls = json.loads(fp.readline())
     lvls = {int(x):lvls[x] for x in lvls}
+    with open('data/transaction/transactionjson10.txt') as fp:
+        transactions = json.loads(fp.readline())
     transactions = {int(x):transactions[x] for x in transactions}
     total_zones = max([int(x) for x in zones.keys()]) + 1
     fp = open(trajsjson)
