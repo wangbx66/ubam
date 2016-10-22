@@ -32,6 +32,8 @@ class filter:
 
     def write(self, fn, buf):
         if self.active:
+            x = int(fn)
+            self.dct[x] += 1
             with open(os.path.join('data/trajs_{0}'.format(self.name), fn), 'a') as fw:
                 fw.write(','.join([str(x) for x in buf]) + '\n')
 
@@ -192,6 +194,7 @@ def sats():
         ff.close()
 
 def frames(num_frames=10, skip_frames=4, name='advancing', flt=None):
+    rng = np.random.RandomState(100)
     num_cat_feature = 5
     num_ord_feature = 3
     with open('data/zonesjson') as fp:
@@ -204,20 +207,21 @@ def frames(num_frames=10, skip_frames=4, name='advancing', flt=None):
         transactions = json.loads(fp.readline())
     transactions = {int(x):transactions[x] for x in transactions}
     total_zones = max([int(x) for x in zones.keys()]) + 1
-    users = json.loads(open('data/transjson_{0}'.format(name)).readline())
+    users = json.loads(open('data/trajsjson_{0}'.format(name)).readline())
     users = {int(x):users[x] for x in users if users[x] > 2 * num_frames}
     keys = np.array(list(users.keys()), dtype=np.uint64)
     values = np.array(list(users.values()), dtype=np.float32)
     values -= num_frames
     pp = values / values.sum()
     frame = 0
+    valid = True
     satisfactions = 'x'
     action = 'x'
     net_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
     while True:
-        user = rng.choice(k, p=pp)
+        user = rng.choice(keys, p=pp)
         start = rng.randint(low=0, high=users[user] - num_frames - skip_frames)
-        with open(os.path.join('data/trajs_{0}', '{1}'.format(name, user))) as fp:
+        with open('data/trajs_{0}/{1}'.format(name, user)) as fp:
             for line_idx, line in enumerate(fp):
                 if not (line_idx >= start and line_idx < start + num_frames + skip_frames):
                     continue
@@ -229,14 +233,16 @@ def frames(num_frames=10, skip_frames=4, name='advancing', flt=None):
                 norm_lvl = s.lvl / 70
                 norm_num_zones = min(s.num_zones / 12, 1.1)
                 norm_zone_stay = min(s.zone_stay / 75, 1.1)
-                net_input[idx - start, :, 0] = np.array([s.guild, s.race, s.category, s.zone, s.zonetype, norm_lvl, norm_num_zones, norm_zone_stay])
+                net_input[line_idx - start, :, 0] = np.array([s.guild, s.race, s.category, s.zone, s.zonetype, norm_lvl, norm_num_zones, norm_zone_stay])
+                if line_idx == start + num_frames - 1:
+                    previous_lvl = s.lvl
         #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
         if not valid:
             valid = True
             continue
         satisfactions = np.array([s.advancement, s.competition, s.relationship, s.teamwork, s.escapism])
         action = net_input[-skip_frames:, 3, 0].reshape((skip_frames, )).astype(np.uint8)
-        action_set_lvl = lvls[lvl_in]
+        action_set_lvl = lvls[previous_lvl]
         last_zone = net_input[-(skip_frames + 1), 3, 0].astype(np.uint8)
         if last_zone in transactions:
             action_set_transaction = transactions[last_zone] + [last_zone, ]
@@ -259,58 +265,55 @@ def frames(num_frames=10, skip_frames=4, name='advancing', flt=None):
             action = 'x'
             net_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
 
-def batches(trajsjson='data/trajsjson', batch_size=32):
-    g = frames(trajsjson=trajsjson)
+def batches(num_frames=10, skip_frames=4, name='advancing', flt=None, batch_size=32):
+    g = frames(num_frames=num_frames, skip_frames=skip_frames, name=name, flt=flt)
     batch = []
-    idx = 0
+    cnt = 0
     while True:
         batch.append(g.__next__())
-        idx += 1
-        if idx == batch_size:
+        cnt += 1
+        if cnt == batch_size:
             yield [np.array(x) for x in zip(*batch)]
-            idx = 0
             batch = []
+            cnt = 0
 
-def hdf_dump(trajsjson='data/trajsjson', path='data/episodes.hdf', size=10000, flt=None):
+def hdf_dump(name='advancing', size=10000, flt=None):
     cd_size = 0
-    s = frames(trajsjson=trajsjson, flt=flt).__next__()
-    with open('data/zonesjson.txt') as fp:
+    dp = frames(name=name, flt=flt).__next__()
+    with open('data/zonesjson') as fp:
         zones = json.loads(fp.readline())
     num_zones = max([int(x) for x in zones.keys()]) + 1
-    shape = [x.shape for x in s[:-1]]
-    with h5py.File(path, 'w') as fw:
+    shape = [x.shape for x in dp[:-1]]
+    with h5py.File('data/episodes_{0}-{1}.hdf'.format(name, size), 'w') as fw:
         context = fw.create_dataset('context', (size, *shape[0]), 'f')
-        reward = fw.create_dataset('reward', (size, *shape[1]), 'f')
+        satisfactions = fw.create_dataset('satisfactions', (size, *shape[1]), 'f')
         action = fw.create_dataset('action', (size, *shape[2]), 'i')
         candidates = fw.create_dataset('candidates', (size, num_zones), 'i')
-        for idx, frame in enumerate(frames(trajsjson=trajsjson, flt=flt)):
-            if idx == size:
+        for frame_idx, frame in enumerate(frames(name=name, flt=flt)):
+            if frame_idx == size:
                 break
-            if idx % 1000 == 0 and size > 30000:
+            if frame_idx % 10000 == 0 and size > 30000:
                 fw.flush()
-                print(idx, time.time())
-            context[idx] = frame[0]
-            reward[idx] = frame[1]
-            action[idx] = frame[2]
-            candidates[idx] = frame[3]
-            cd_size += frame[3].sum()
-            #candidates[idx] = np.array([int(x in frame[3]) for x in range(num_zones)])
-            #cd_size += len(frame[3])
-    #print("averaged #candidate = {0}".format(cd_size / size))
+                print(frame_idx, time.time())
+            context[frame_idx] = frame[0]
+            satisfactions[frame_idx] = frame[1]
+            action[frame_idx] = frame[2]
+            candidates[frame_idx] = frame[3]
 
-def hdf(path='data/episodes.hdf', batch_size=32, num_batch=1000):
+def hdf(path, batch_size=32, num_batch=1000):
     fp = h5py.File(path)
     context = fp['context']
     assert(context.shape[0] >= batch_size * num_batch)
-    reward = fp['reward']
+    satisfaction = fp['satisfaction']
     action = fp['action']
     candidates = fp['candidates']
     for idx in range(num_batch):
-        i = slice(idx * batch_size, (idx+1) * batch_size) # keep intact for all other dimensions
-        yield (context[i], reward[i], action[i], candidates[i], )
-        
+        i = slice(idx * batch_size, (idx+1) * batch_size) # index over 1st dim while keep intact for all other dimensions
+        yield (context[i], satisfactions[i], action[i], candidates[i], )
 
 if __name__ == "__main__":
-    sats()
-    #hdf_dump(size=1000000)
+    if sys.argv[1] == 'sats':
+        sats()
+    elif sys.argv[1] == 'hdf_dump':
+        hdf_dump(name='advancing', size=10000)
     
