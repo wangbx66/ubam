@@ -30,8 +30,23 @@ class record:
             self.race = int(race)
             self.category = int(category)
             self.zone = int(zone)
-        elif style == 'sat':
-            idx, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5
+        elif style == 'sats':
+            user, tt, guild, lvl, race, category, zone, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5 = line.strip().split(',')
+            self.user = int(user)
+            self.tt = int(tt)
+            self.guild = int(guild)
+            self.lvl = int(lvl)
+            self.race = int(race)
+            self.category = int(category)
+            self.zone = int(zone)
+            self.zonetype = int(zonetype)
+            self.num_zones = int(num_zones)
+            self.zone_stay = int(zone_stay)
+            self.advancement = float(r1) 
+            self.competition = float(r2)
+            self.relationship = float(r3)
+            self.teamwork = float(r4) 
+            self.escapism = float(r5)
         elif style == 'zone':
             zone, continent, area, alter, subzone, zonetype, size, lord, lvl_entry, lvl_rec_min, lvl_rec_max, lvl_npc_min, lvl_npc_max = line
             zone_tmp = re.sub(p_sub, p_repl, zone)
