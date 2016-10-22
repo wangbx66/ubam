@@ -40,6 +40,9 @@ class filter:
             fw.write(json.dumps({x:self.dct[x] for x in self.dct if not self.dct[x] == 0}))
 
 def advancing(s, lvl_range):
+    '''
+    Between Lichking_tt[0] and Lichking_tt[1] is the day the update happens. The data during that period is eliminated b/c I have no clue what's the exact timing the patch is distributed and if the player can react immediately afterwards
+    '''
     return ((s.lvl < 70 and s.tt < Lichking_tt[0]) or (s.lvl < 80 and s.tt > Lichking_tt[1])) and s.lvl in lvl_range
 
 def max_(s, lvl_range):
@@ -55,6 +58,12 @@ def hunter(s, lvl_range):
     return advancing(s, lvl_range) and s.category == Categories['Hunter']
 
 def sats():
+    '''
+    possible additional features:
+    the time elapse during current zone
+    the time elapse during current session
+    the player total time spending
+    '''
     rival = len(Zonetypes)
     users_sketch = json.loads(open('data/usersjson_sketch').readline())
     users_sketch = {int(x):users_sketch[x] for x in users_sketch}
@@ -111,17 +120,6 @@ def sats():
         regular_length = 0
         daily_time = 0
         for s in records:
-            # For the day the Lichking update happens (no longer needed under the filter system)
-            #if Lichking_tt[0] <= s.tt <= Lichking_tt[1]:
-            #    continue
-            #if not lvl == 80 and lvl in lvl_range:
-            #    fw = open(os.path.join('data/trajs_advancing', user_file), 'a')
-            #    users_advancing[user] += 1
-            #elif lvl == 80:
-            #    fw = open(os.path.join('data/trajs_max', user_file), 'a')
-            #    users_max[user] += 1
-            #else:
-            #    continue
             for ff in filters:
                 ff.filter(s, lvl_range)
             if not any(ff.active for ff in filters):
@@ -143,15 +141,15 @@ def sats():
                 previous_zone = s.zone
             s.feature_zone_session_length = zone_session_length
             # Generate satisfactions
-            reward_advancement = lvl_gain[s.lvl] if s.lvl in lvl_gain else 0 # those s.lvl not in lvl_gain can only be 70 or 80
-            s.reward_advancement = reward_advancement
+            satisfaction_advancement = lvl_gain[s.lvl] if s.lvl in lvl_gain else 0 # those s.lvl not in lvl_gain can only be 70 or 80
+            s.satisfaction_advancement = satisfaction_advancement
             if zonetype == Zonetypes['Arena']:
-                reward_competition = 0.9
+                satisfaction_competition = 0.9
             elif zonetype == Zonetypes['Battleground']:
-                reward_competition = 1.1
+                satisfaction_competition = 1.1
             else:
-                reward_competition = 0
-            s.reward_competition = reward_competition
+                satisfaction_competition = 0
+            s.satisfaction_competition = satisfaction_competition
             current_guild = s.guild
             if previous_guild == current_guild and not current_guild == 0: # guild == 0 iff no guild. check class records with style raw
                 guild_age += 1
@@ -159,19 +157,19 @@ def sats():
                 guild_age = 0
                 previous_guild = current_guild
             in_guild = not current_guild == 0
-            reward_relationship = in_guild * 0.5 + math.sqrt(guild_age) / 150
-            s.reward_relationship = reward_relationship
+            satisfaction_relationship = in_guild * 0.5 + math.sqrt(guild_age) / 150
+            s.satisfaction_relationship = satisfaction_relationship
             if zonetype == Zonetypes['Battleground']:
-                reward_teamwork = 0.5
+                satisfaction_teamwork = 0.5
             elif zonetype == Zonetypes['Dungeon']:
-                reward_teamwork = 0.7
+                satisfaction_teamwork = 0.7
             elif zonetype == rival: # zonetype has been modified
-                reward_teamwork = 0.9
+                satisfaction_teamwork = 0.9
             elif zonetype == Zonetypes['Arena']:
-                reward_teamwork = 1.1
+                satisfaction_teamwork = 1.1
             else:
-                reward_teamwork = 0 # we temproraly ignore raid, due to some trickiers to get raid label
-            s.reward_teamwork = reward_teamwork
+                satisfaction_teamwork = 0 # we temproraly ignore raid, due to some trickiers to get raid label
+            s.satisfaction_teamwork = satisfaction_teamwork
             current_time = s.tt
             if current_time <= previous_time + 1:
                 session_length += 1
@@ -184,10 +182,10 @@ def sats():
             elif current_time > daily_time + 288:
                 regular_length = 1
                 daily_time = current_time
-            reward_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
-            s.reward_escapism = reward_escapism
+            satisfaction_escapism = max(regular_length - 10, 0) / 50 + max(session_length - 24, 0) / 12
+            s.satisfaction_escapism = satisfaction_escapism
             # Writing the newly generated data
-            buf = (s.user, s.tt, s.guild, s.lvl, s.race, s.category, s.zone, s.feature_zonetype, s.feature_versatile_zones, s.feature_zone_session_length, s.reward_advancement, s.reward_competition, s.reward_relationship, s.reward_teamwork, s.reward_escapism)
+            buf = (s.user, s.tt, s.guild, s.lvl, s.race, s.category, s.zone, s.feature_zonetype, s.feature_versatile_zones, s.feature_zone_session_length, s.satisfaction_advancement, s.satisfaction_competition, s.satisfaction_relationship, s.satisfaction_teamwork, s.satisfaction_escapism)
             for ff in filters:
                 ff.write(user_file, buf)
     for ff in filters:
@@ -202,103 +200,66 @@ def frames(num_frames=10, skip_frames=4, name='advancing', flt=None):
     with open('data/lvlsjson') as fp:
         lvls = json.loads(fp.readline())
     lvls = {int(x):lvls[x] for x in lvls}
-    with open('data/transaction/transactionjson10.txt') as fp:
+    with open('data/transaction/transactionjson10') as fp:
         transactions = json.loads(fp.readline())
     transactions = {int(x):transactions[x] for x in transactions}
     total_zones = max([int(x) for x in zones.keys()]) + 1
-    fp = open(trajsjson)
-    users = json.loads(fp.readline())
+    users = json.loads(open('data/transjson_{0}'.format(name)).readline())
     users = {int(x):users[x] for x in users if users[x] > 2 * num_frames}
-    k = np.array(list(users.keys()), dtype=np.uint64)
-    p = np.array(list(users.values()), dtype=np.float32)
-    norm = (p - num_frames).sum()
-    p /= norm
-    p /= p.sum()
-    fp.close()
+    keys = np.array(list(users.keys()), dtype=np.uint64)
+    values = np.array(list(users.values()), dtype=np.float32)
+    values -= num_frames
+    pp = values / values.sum()
     frame = 0
+    satisfactions = 'x'
+    action = 'x'
     net_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
-    reward = 0
-    action = 0
-    power = 2.3
     while True:
-        valid = True
-        user = rng.choice(k, p=p)
+        user = rng.choice(k, p=pp)
         start = rng.randint(low=0, high=users[user] - num_frames - skip_frames)
-        with open(os.path.join('data/trajs', '{0}.txt'.format(user))) as fp:
-            for idx, line in enumerate(fp):
-                if idx >= start and idx < start + num_frames + skip_frames:
-                    idx_logstats, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5 = line.strip().split(',')
-                    idx_logstats = int(idx_logstats)
-                    user = int(user)
-                    tt = int(tt)
-                    guild = int(guild)
-                    lvl = int(lvl)
-                    race = int(race)
-                    category = int(category)
-                    zone = int(zone)
-                    seq = int(seq)
-                    zonetype = int(zonetype)
-                    num_zones = int(num_zones)
-                    zone_stay = int(zone_stay)
-                    r1 = float(r1) 
-                    r2 = float(r2)
-                    r3 = float(r3)
-                    r4 = float(r4) 
-                    r5 = float(r5)
-                    if not flt is None:
-                        if not flt(idx_logstats, user, tt, guild, lvl, race, category, zone, seq, zonetype, num_zones, zone_stay, r1, r2, r3, r4, r5):
-                            valid = False
-                            break
-                    #print(idx, start, start + num_frames + skip_frames - 1)
-                    # possible additional features
-                    # the time elapse during current zone
-                    # the time elapse during current session
-                    # the player total time spending
-                    lvl = int(lvl)
-                    norm_lvl = lvl / 70
-                    norm_idx = min(idx / 1500, 1.1)
-                    norm_num_zones = min(int(num_zones) / 12, 1.1)
-                    norm_zone_stay = min(int(zone_stay) / 75, 1.1)
-                    net_input[idx - start, :, 0] = np.array([int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay])
-                    #print([int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay])
-                    if idx == start + num_frames - 1:
-                        lvl_in = lvl
-                    if idx == start + num_frames + skip_frames - 1:
-                        lvl_out = lvl
-        #reward = np.float32(lvl_out ** power - lvl_in ** power)
+        with open(os.path.join('data/trajs_{0}', '{1}'.format(name, user))) as fp:
+            for line_idx, line in enumerate(fp):
+                if not (line_idx >= start and line_idx < start + num_frames + skip_frames):
+                    continue
+                s = record(line, style='sats')
+                if not flt is None:
+                    if not flt(s):
+                        valid = False
+                        break
+                norm_lvl = s.lvl / 70
+                norm_num_zones = min(s.num_zones / 12, 1.1)
+                norm_zone_stay = min(s.zone_stay / 75, 1.1)
+                net_input[idx - start, :, 0] = np.array([s.guild, s.race, s.category, s.zone, s.zonetype, norm_lvl, norm_num_zones, norm_zone_stay])
         #action = np.argmax(np.bincount(net_input[-skip_frames:, -3, 0].reshape((skip_frames, )).astype(np.uint8)))
         if not valid:
+            valid = True
             continue
-        reward = np.array([float(x) for x in [r1, r2, r3, r4, r5]])
+        satisfactions = np.array([s.advancement, s.competition, s.relationship, s.teamwork, s.escapism])
         action = net_input[-skip_frames:, 3, 0].reshape((skip_frames, )).astype(np.uint8)
         action_set_lvl = lvls[lvl_in]
         last_zone = net_input[-(skip_frames + 1), 3, 0].astype(np.uint8)
         if last_zone in transactions:
             action_set_transaction = transactions[last_zone] + [last_zone, ]
         else:
-            print("*zone too minor")
+            print('*zone too minor {0}'.format(last_zone))
             continue
         if not action[0] in action_set_lvl:
-            #print("*overlevel zone")
-            #print("actual zones {0}".format(action))
-            #print("zone require {0} and current level {1}".format(zones[action[0]][4], lvl_in))
             continue
         action_set = list(set(action_set_lvl) & set(action_set_transaction))
         if not action_set:
-            print("*no adjacent zone")
+            print('*no adjacent zone {0}'.format(last_zone))
             print(action_set_lvl, action_set_transaction)
             continue
-        action_set = np.array(action_set)
         action_set_np = np.array([int(x in action_set) for x in range(total_zones)])
         frame += 1
         if frame == num_frames:
-            yield (net_input, reward, action, action_set_np)
+            yield (net_input, satisfactions, action, action_set_np)
             frame = 0
+            satisfactions = 'x'
+            action = 'x'
             net_input = np.zeros((num_frames + skip_frames, num_cat_feature + num_ord_feature, 1), dtype=np.float32)
-            reward = 0
-            action = 0
 
-def batches(trajsjson='data/trajsjson.txt', batch_size=32):
+def batches(trajsjson='data/trajsjson', batch_size=32):
     g = frames(trajsjson=trajsjson)
     batch = []
     idx = 0
@@ -310,7 +271,7 @@ def batches(trajsjson='data/trajsjson.txt', batch_size=32):
             idx = 0
             batch = []
 
-def hdf_dump(trajsjson='data/trajsjson.txt', path='data/episodes.hdf', size=10000, flt=None):
+def hdf_dump(trajsjson='data/trajsjson', path='data/episodes.hdf', size=10000, flt=None):
     cd_size = 0
     s = frames(trajsjson=trajsjson, flt=flt).__next__()
     with open('data/zonesjson.txt') as fp:
