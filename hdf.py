@@ -304,7 +304,7 @@ def hdf(path, batch_size=32, num_batch=1000):
     fp = h5py.File(path)
     context = fp['context']
     assert(context.shape[0] >= batch_size * num_batch)
-    satisfaction = fp['satisfaction']
+    satisfactions = fp['satisfactions']
     action = fp['action']
     candidates = fp['candidates']
     for idx in range(num_batch):

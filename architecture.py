@@ -6,6 +6,7 @@ import logging
 import inspect
 import os
 import sys
+import json
 import pickle
 
 import lasagne
@@ -13,16 +14,16 @@ import numpy as np
 import theano
 import theano.tensor as TT
 
-from agent import hdf
+from hdf import hdf
 
 def logging_config(name=None, file_level=logging.DEBUG, console_level=logging.DEBUG):
     if name is None:
         name = inspect.stack()[1][1].split('.')[0]
-    folder = os.path.join(os.getcwd(), name)
+    folder = 'log-{0}'.format(os.path.join(os.getcwd(), name))
     if not os.path.exists(folder):
         os.makedirs(folder)
-    logpath = os.path.join(folder, name + ".log")
-    print("All Logs will be saved to", logpath)
+    logpath = os.path.join(folder, '{0}.log'.format(name))
+    print('All Logs will be saved to {0}'.format(logpath))
     logging.root.setLevel(file_level)
     file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console_formatter = logging.Formatter('%(message)s')
@@ -38,20 +39,39 @@ def logging_config(name=None, file_level=logging.DEBUG, console_level=logging.DE
 def rmsprop(loss_or_grads, params, learning_rate, rho, epsilon):
     grads = lasagne.updates.get_or_compute_grads(loss_or_grads, params)
     updates = OrderedDict()
-
     for param, grad in zip(params, grads):
         value = param.get_value(borrow=True)
-
         acc_grad = theano.shared(np.zeros(value.shape, dtype=value.dtype), broadcastable=param.broadcastable)
         acc_grad_new = rho * acc_grad + (1 - rho) * grad
         acc_rms = theano.shared(np.zeros(value.shape, dtype=value.dtype), broadcastable=param.broadcastable)
         acc_rms_new = rho * acc_rms + (1 - rho) * grad ** 2
-
         updates[acc_grad] = acc_grad_new
         updates[acc_rms] = acc_rms_new
         updates[param] = (param - learning_rate * (grad / TT.sqrt(acc_rms_new - acc_grad_new **2 + epsilon)))
-
     return updates, grads
+
+def major(actions, skip_frames, batch_size):
+    z = []
+    for i in range(batch_size):
+        s = {}
+        for j in range(skip_frames):
+            a = actions[i, j]
+            if a in s:
+                s[a] += 1
+            else:
+                s[a] = 1
+        m = max(list(s.values()))
+        if m > 1:
+            for j in range(skip_frames):
+                a = actions[i, -j-1]
+                if s[a] == m:
+                    z.append(a)
+                    s = {}
+                    break
+        else:
+            z.append(actions[i, -1])
+            s = {}
+    return np.array(z, dtype=np.uint32)
 
 class T_T(lasagne.layers.Layer):
     '''
@@ -99,11 +119,23 @@ class QwQ(lasagne.layers.Layer):
     def get_output_for(self, input_tensor, **kwargs):
         return input_tensor.astype(self.dtype)
 
-def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[513,5,10,165,9], output_dim=165):
+def build_wowah_network(num_frames=10):
+    '''
+    lasagne真心是个坑T_T
+    '''
+    from constant import Max_guild
+    from constant import Races
+    from constant import Categories
+    from constant_zone import Zonetypes
+    total_zonetypes = len(Zonetypes) + 1
+    with open('data/zonesjson') as fp:
+        zones = json.loads(fp.readline())
+    total_zones = max([int(x) for x in zones.keys()]) + 1
 
-    # int(guild), int(race), int(category), int(zone), int(zonetype), norm_lvl, norm_num_zones, norm_zone_stay
-
+    input_width=8
+    cat_length=5
     input_height = 1
+    cat_size = [Max_guild, len(Races), len(Categories), total_zones, total_zonetypes]
 
     context = TT.tensor4(name='input')
     l_in = lasagne.layers.InputLayer(
@@ -169,7 +201,7 @@ def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[51
 
     l_out = lasagne.layers.DenseLayer(
         l_hidden2,
-        num_units=output_dim,
+        num_units=total_zones,
         nonlinearity=lasagne.nonlinearities.rectify,
         W=lasagne.init.Normal(.01),
         b=lasagne.init.Constant(.1)
@@ -182,31 +214,12 @@ def build_wowah_network(num_frames=10, input_width=8, cat_length=5, cat_size=[51
     
     return l_out#, locals()
 
-def major(actions, skip_frames, batch_size):
-    z = []
-    for i in range(batch_size):
-        s = {}
-        for j in range(skip_frames):
-            a = actions[i, j]
-            if a in s:
-                s[a] += 1
-            else:
-                s[a] = 1
-        m = max(list(s.values()))
-        if m > 1:
-            for j in range(skip_frames):
-                a = actions[i, -j-1]
-                if s[a] == m:
-                    z.append(a)
-                    s = {}
-                    break
-        else:
-            z.append(actions[i, -1])
-            s = {}
-    return np.array(z, dtype=np.uint32)
 
 if __name__ == '__main__':
-    # python architecture.py 0 3000 300 0.0025 sam-sep-30 
+    '''
+    example of execution:
+    python architecture.py 0 3000 300 0.0025 test
+    '''
     if not os.path.exists('data/networks'):
         os.mkdir('data/networks')
     
@@ -304,7 +317,7 @@ if __name__ == '__main__':
             predict_stays = 0
             keeps = 0
             predict_histogram = [0] * 165
-            for idx, (context, reward, action, candidates) in enumerate(islice(hdf(batch_size=batch_size, num_batch=num_batch), num_batch)):
+            for idx, (context, reward, action, candidates) in enumerate(islice(hdf(path='data/episodes_{0}-10000.hdf'.format(name), batch_size=batch_size, num_batch=num_batch), num_batch)):
                 action_star = major(action, skip_frames, batch_size)
 
                 if not idx >= num_batch - test_batch:
