@@ -218,7 +218,7 @@ def build_wowah_network(num_frames=10):
 if __name__ == '__main__':
     '''
     example of execution:
-    python architecture.py 0 3000 300 0.0025 test
+    python architecture.py 0 3000 300 0.0025 advancing
     '''
     if not os.path.exists('data/networks'):
         os.mkdir('data/networks')
@@ -231,11 +231,13 @@ if __name__ == '__main__':
     
     logging_config()
     
-    theano.config.optimizer = 'fast_run'
-    theano.config.exception_verbosity = 'low'
-    theano.config.compute_test_value = 'off'
-    #theano.config.optimizer = 'fast_compile'
-    #theano.config.exception_verbosity = 'high'
+    theano.config.optimizer = 'fast_run' # 'fast_compile'
+    theano.config.exception_verbosity = 'low' # 'high'
+    theano.config.compute_test_value = 'off' # 'on'
+
+    list_data = [path for path in os.listdir('data') if path.startswith('episodes_{0}'.format(name))]
+    hdf_size = max(int(path.split('.')[0].split('-')) for path in list_data)
+    data = 'data/episodes_{0}-{1}.hdf'.format(name, hdf_size)
 
     if reward_idx == 5:
         reward_idxes = range(5)
@@ -317,7 +319,7 @@ if __name__ == '__main__':
             predict_stays = 0
             keeps = 0
             predict_histogram = [0] * 165
-            for idx, (context, reward, action, candidates) in enumerate(islice(hdf(path='data/episodes_{0}-10000.hdf'.format(name), batch_size=batch_size, num_batch=num_batch), num_batch)):
+            for idx, (context, reward, action, candidates) in enumerate(hdf(path=data, batch_size=batch_size, num_batch=num_batch)):
                 action_star = major(action, skip_frames, batch_size)
 
                 if not idx >= num_batch - test_batch:

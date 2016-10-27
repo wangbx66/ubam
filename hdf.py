@@ -315,5 +315,5 @@ if __name__ == "__main__":
     if sys.argv[1] == 'sats':
         sats()
     elif sys.argv[1] == 'hdf_dump':
-        hdf_dump(name='advancing', size=10000)
+        hdf_dump(name='advancing', size=int(sys.argv[2]))
     
