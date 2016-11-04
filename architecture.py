@@ -218,12 +218,12 @@ def build_wowah_network(num_frames=10):
 if __name__ == '__main__':
     '''
     example of execution:
-    python architecture.py 0 3000 300 0.0025 advancing
+    python architecture.py 0 30000 350 0.0025 advancing
     '''
     if not os.path.exists('data/networks'):
         os.mkdir('data/networks')
     
-    reward_idx = int(sys.argv[1])
+    satisfaction_idx = int(sys.argv[1])
     num_batch = int(sys.argv[2])
     n_epoch = int(sys.argv[3])
     lr = float(sys.argv[4]) # 0.00045
@@ -236,19 +236,18 @@ if __name__ == '__main__':
     theano.config.compute_test_value = 'off' # 'on'
 
     list_data = [path for path in os.listdir('data') if path.startswith('episodes_{0}'.format(name))]
-    hdf_size = max(int(path.split('.')[0].split('-')) for path in list_data)
+    hdf_size = max(int(path.split('.')[0].split('-')[1]) for path in list_data)
     data = 'data/episodes_{0}-{1}.hdf'.format(name, hdf_size)
 
-    if reward_idx == 5:
-        reward_idxes = range(5)
+    if satisfaction_idx == 5:
+        satisfaction_idxes = range(5)
     else:
-        reward_idxes = [reward_idx]
-    for reward_idx in reward_idxes:
+        satisfaction_idxes = [satisfaction_idx]
+    for satisfaction_idx in satisfaction_idxes:
 
         l_out = build_wowah_network()
 
         batch_size = 32
-        #num_batch = 3000
         test_batch = 1000
         num_frames = 10
         skip_frames = 4
@@ -259,8 +258,11 @@ if __name__ == '__main__':
         #lr = 0.00005
         rho = 0.95
         rms_epsilon = 0.01
-        num_actions = 165
-        #reward_idx = 0
+        with open('data/zonesjson') as fp:
+            zones = json.loads(fp.readline())
+        zones = {int(x):zones[x] for x in zones}
+        total_zones = max([int(x) for x in zones.keys()]) + 1
+        num_actions = total_zones
 
         states = TT.tensor4('states')
         next_states = TT.tensor4('next_states')
@@ -279,7 +281,7 @@ if __name__ == '__main__':
         state_shared = theano.shared(
             np.zeros((num_frames, input_height, input_width),
                      dtype=theano.config.floatX))
-        
+
         q_vals = lasagne.layers.get_output(l_out, states)
         next_q_vals = lasagne.layers.get_output(l_out, next_states)
         #next_q_vals = theano.gradient.disconnected_grad(next_q_vals)
@@ -324,7 +326,7 @@ if __name__ == '__main__':
 
                 if not idx >= num_batch - test_batch:
                     context_shared.set_value(context)
-                    rewards_shared.set_value(reward[:,reward_idx].reshape(batch_size, 1))
+                    rewards_shared.set_value(reward[:,satisfaction_idx].reshape(batch_size, 1))
                     actions_shared.set_value(action_star.reshape(batch_size, 1))
 
                     train_results = train()
@@ -354,10 +356,10 @@ if __name__ == '__main__':
             dominate_rate = max(predict_histogram) / (batch_size * test_batch)
             keep_rate = keeps / (batch_size * test_batch)
             loss = total_loss / (batch_size * (num_batch - test_batch))
-            logging.info('{8} #{3}/{7}: loss={0}, spd={1}, acc={2}, unary={4}/~60%, dmt={5}, keep={6}'.format(loss, total_speed, accuracy, epoch+1, predict_stick, dominate_rate, keep_rate, reward_idx, name))
+            logging.info('{8} #{3}/{7}: loss={0}, spd={1}, acc={2}, unary={4}/~60%, dmt={5}, keep={6}'.format(loss, total_speed, accuracy, epoch+1, predict_stick, dominate_rate, keep_rate, satisfaction_idx, name))
             #print('stay rate = {0}, unary rate = {1}'.format(stick, predict_stick))
             #logging.info(str(np.argmax(q_hat, axis=1)))
             network = lasagne.layers.get_all_param_values(l_out)
-            netfile = open('data/networks/Q-{2}-{0}-{1}.pkl'.format(reward_idx, epoch+1, name), 'wb')
+            netfile = open('data/networks/Q-{2}-{0}-{1}.pkl'.format(satisfaction_idx, epoch+1, name), 'wb')
             pickle.dump(network, netfile)
             
